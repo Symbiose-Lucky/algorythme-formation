@@ -6,6 +6,7 @@ use AllowDynamicProperties;
 use App\Service\CatalogueFormations;
 use App\Service\MailService;
 use App\Service\QuotaOrientation;
+use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,6 +17,13 @@ use Throwable;
 #[AllowDynamicProperties]
 class MainController extends AbstractController
 {
+    #[Route('/health', name: 'health')]
+    public function health(Connection $db): Response
+    {
+        $db->executeQuery('SELECT 1');
+
+        return new Response('HEALTH_OK', 200, ['Cache-Control' => 'no-store']);
+    }
 
     /**
      * Quiz de cadrage de la page d'accueil.

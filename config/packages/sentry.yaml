@@ -1,0 +1,36 @@
+# Remontée des erreurs de production vers Sentry (https://docs.sentry.io/platforms/php/guides/symfony/)
+# Le DSN est lu dans SENTRY_DSN, à définir uniquement dans .env.local sur le serveur de production.
+when@prod:
+    sentry:
+        dsn: '%env(SENTRY_DSN)%'
+
+        # Uniquement les erreurs : pas de suivi de performance (ni envoi, ni instrumentation de Doctrine, Twig, cache…)
+        tracing:
+            enabled: false
+
+        options:
+            # Aucune donnée personnelle (adresse IP, cookies, utilisateur connecté…)
+            send_default_pii: false
+            traces_sample_rate: 0
+            # Aucun corps de requête (données de formulaire, JSON…) envoyé
+            max_request_body_size: 'none'
+
+            # Filtre avant envoi : ignore les erreurs HTTP < 500 (voir App\Monitoring\SentryFilter::beforeSend).
+            # Le bundle attend ici un identifiant de service, défini ci-dessous.
+            before_send: 'app.sentry.before_send'
+
+            # Exceptions qui ne sont pas des bugs
+            ignore_exceptions:
+                - 'Symfony\Component\HttpKernel\Exception\NotFoundHttpException'
+                - 'Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException'
+                - 'Symfony\Component\Security\Core\Exception\AccessDeniedException'
+                - 'Symfony\Component\ErrorHandler\Error\FatalError'
+                - 'Symfony\Component\Debug\Exception\FatalErrorException'
+
+    services:
+        # Closure enveloppant la méthode statique App\Monitoring\SentryFilter::beforeSend
+        app.sentry.before_send:
+            class: Closure
+            factory: ['Closure', 'fromCallable']
+            arguments:
+                - ['App\Monitoring\SentryFilter', 'beforeSend']
