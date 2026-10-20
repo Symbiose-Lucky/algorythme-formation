@@ -6,6 +6,7 @@ namespace App\Monitoring;
 
 use Sentry\Event;
 use Sentry\EventHint;
+use Symfony\Component\Console\Exception\CommandNotFoundException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 /**
@@ -24,18 +25,36 @@ final class SentryFilter
                 return null;
             }
 
-            if ($exception instanceof \ErrorException) {
-                $message = $exception->getMessage();
+            // Commande console inexistante : erreur d'exploitation, pas un bug de l'application.
+            if ($exception instanceof CommandNotFoundException) {
+                return null;
+            }
 
-                // Fichier du cache absent pendant un déploiement (cache en cours de régénération).
-                if (str_contains($message, '/var/cache/') && str_contains($message, 'Failed to open stream')) {
-                    return null;
-                }
+            // Fichier du cache absent pendant un déploiement (cache en cours de régénération),
+            // qu'il s'agisse d'un warning (ErrorException) ou d'une erreur fatale (Error).
+            $message = $exception->getMessage();
+            if (str_contains($message, '/var/cache/')
+                && (str_contains($message, 'Failed to open stream') || str_contains($message, 'Failed opening required'))
+            ) {
+                return null;
+            }
 
-                // Dépréciations PHP : à traiter lors des montées de version, pas en alerte de prod.
-                if (in_array($exception->getSeverity(), [E_DEPRECATED, E_USER_DEPRECATED], true)) {
-                    return null;
-                }
+            // Fichier de session du dossier système illisible : créé par un autre site du serveur,
+            // sans conséquence (PHP ouvre une nouvelle session). Ne concerne que la lecture dans
+            // /var/lib/php/sessions : une écriture impossible ou un dossier dédié cassé remontent toujours.
+            if ($exception instanceof \ErrorException
+                && str_contains($message, 'SessionHandler::read()')
+                && str_contains($message, '/var/lib/php/sessions/')
+                && str_contains($message, 'Permission denied')
+            ) {
+                return null;
+            }
+
+            // Dépréciations PHP : à traiter lors des montées de version, pas en alerte de prod.
+            if ($exception instanceof \ErrorException
+                && in_array($exception->getSeverity(), [E_DEPRECATED, E_USER_DEPRECATED], true)
+            ) {
+                return null;
             }
 
             $exception = $exception->getPrevious();
