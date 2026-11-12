@@ -55,6 +55,12 @@
     box-sizing: border-box;
 }
 
+// L'attribut `hidden` doit l'emporter sur le `display` des composants
+// (un bouton en `inline-flex` resterait visible sinon).
+body.adm [hidden] {
+    display: none !important;
+}
+
 body.adm {
     margin: 0;
     background: var(--adm-fond);
