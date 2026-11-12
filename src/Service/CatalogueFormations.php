@@ -35,6 +35,7 @@ class CatalogueFormations
     public function __construct(
         private readonly FormationRepository $formations,
         private readonly SluggerInterface    $slugger,
+        private readonly Indicateurs         $indicateurs,
     )
     {
     }
@@ -165,6 +166,7 @@ class CatalogueFormations
     {
         $domaine = $formation->getDomaine();
         $tarifs = $this->tarifs($formation);
+        $indicateurs = $this->indicateurs->publics($formation);
 
         return [
             'id' => $formation->getId(),
@@ -185,9 +187,12 @@ class CatalogueFormations
             'tarifs' => $tarifs,
             // Coût affiché sur la carte : la formule inter, sinon l'intra.
             'tarifSessionHT' => $tarifs[0]['montantHT'] ?? null,
-            // 0 signifie « pas encore de note », pas une mauvaise note.
-            'note' => $formation->getNote() > 0 ? $formation->getNote() : null,
-            'nbFormes' => $formation->getNbFormes() > 0 ? $formation->getNbFormes() : null,
+            // L'historique saisi sur la fiche, complété par ce que l'outil a
+            // mesuré (voir Indicateurs::publics). Null : rien à afficher.
+            'note' => $indicateurs['note'],
+            'nbFormes' => $indicateurs['nbFormes'],
+            'recommandation' => $indicateurs['recommandation'],
+            'tauxAcquis' => $indicateurs['acquis'],
         ];
     }
 

@@ -1,6 +1,8 @@
-{# Note de satisfaction et nombre de personnes formées (saisis dans l'admin).
-   `note` (sur 5) et `nbFormes` valent null quand ils ne sont pas saisis :
-   la partie correspondante n'est alors pas affichée.
+{# Note de satisfaction et nombre de personnes formées : l'historique saisi
+   dans l'admin, complété par ce que l'outil a mesuré (Indicateurs::publics).
+   `note` (sur 5) et `nbFormes` valent null quand il n'y a rien à afficher :
+   la partie correspondante n'est alors pas affichée. `recommandation` et
+   `acquis` (en %) sont facultatifs : seule la fiche d'une formation les passe.
    Les étoiles se remplissent au prorata de la note : 4,7 → 94 %. #}
 {% if note or nbFormes %}
     <p class="af-note {{ classe|default('') }}">
@@ -17,6 +19,12 @@
                 {% set pluriel = nbFormes > 1 ? 's' : '' %}
                 <strong>{{ nbFormes|number_format(0, ',', ' ') }}</strong> professionnel{{ pluriel }} déjà formé{{ pluriel }}
             </span>
+        {% endif %}
+        {% if recommandation|default(null) is not null %}
+            <span class="af-note__formes"><strong>{{ recommandation }} %</strong> des participants recommandent cette formation</span>
+        {% endif %}
+        {% if acquis|default(null) is not null %}
+            <span class="af-note__formes"><strong>{{ acquis }} %</strong> des objectifs acquis en fin de formation</span>
         {% endif %}
     </p>
 {% endif %}

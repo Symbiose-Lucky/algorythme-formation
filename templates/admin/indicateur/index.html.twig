@@ -1,0 +1,121 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Indicateurs{% endblock %}
+
+{% block titre_page %}Indicateurs de résultats{% endblock %}
+
+{% block sous_titre %}
+    <p class="adm-entete__sous-titre">
+        Calculés sur les émargements et les évaluations enregistrés ici, hors sessions annulées.
+        {{ annee ? 'Sessions commencées en ' ~ annee ~ '.' : 'Toutes les sessions.' }}
+    </p>
+{% endblock %}
+
+{% block actions %}
+    <form method="get" class="adm-recherche">
+        <label for="annee" class="adm-sr">Année</label>
+        <select id="annee" name="annee" onchange="this.form.submit()">
+            <option value="">Toutes les années</option>
+            {% for a in annees %}
+                <option value="{{ a }}" {{ a == annee ? 'selected' }}>{{ a }}</option>
+            {% endfor %}
+        </select>
+        <noscript><button type="submit" class="adm-bouton adm-bouton--discret">Afficher</button></noscript>
+    </form>
+{% endblock %}
+
+{# « 4,6 / 5 », « 92 % », ou un tiret quand il n'y a rien à calculer. #}
+{% macro note(valeur) -%}
+    {{ valeur is null ? '—' : valeur|number_format(1, ',', ' ') ~ ' / 5' }}
+{%- endmacro %}
+
+{% macro taux(valeur) -%}
+    {{ valeur is null ? '—' : valeur ~ ' %' }}
+{%- endmacro %}
+
+{% block contenu %}
+
+    <section class="adm-stats" aria-label="Au total">
+        <div class="adm-stat">
+            <p class="adm-stat__libelle">Personnes formées</p>
+            <p class="adm-stat__valeur">{{ total.formes }}</p>
+        </div>
+        <div class="adm-stat">
+            <p class="adm-stat__libelle">Satisfaction à chaud</p>
+            <p class="adm-stat__valeur">{{ _self.note(total.note) }}</p>
+        </div>
+        <div class="adm-stat">
+            <p class="adm-stat__libelle">Recommandent la formation</p>
+            <p class="adm-stat__valeur">{{ _self.taux(total.recommandation) }}</p>
+        </div>
+        <div class="adm-stat">
+            <p class="adm-stat__libelle">Objectifs acquis</p>
+            <p class="adm-stat__valeur">{{ _self.taux(total.acquis) }}</p>
+        </div>
+    </section>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete">
+            <h2>Par formation</h2>
+            <p class="adm-carte__compte">
+                {{ total.sessions }} session{{ total.sessions > 1 ? 's' }} émargée{{ total.sessions > 1 ? 's' }},
+                {{ total.reponses }} questionnaire{{ total.reponses > 1 ? 's' }} à chaud,
+                {{ total.evalues }} participant{{ total.evalues > 1 ? 's' }} évalué{{ total.evalues > 1 ? 's' }}.
+            </p>
+        </header>
+        {% if lignes is empty %}
+            <p class="adm-vide">Aucune session émargée ni évaluée pour l'instant.</p>
+        {% else %}
+            <div class="adm-table-zone">
+                <table class="adm-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Formation</th>
+                            <th scope="col" class="adm-table__nombre">Sessions</th>
+                            <th scope="col" class="adm-table__nombre">Formés</th>
+                            <th scope="col" class="adm-table__nombre">Réponses</th>
+                            <th scope="col" class="adm-table__nombre">Satisfaction</th>
+                            <th scope="col" class="adm-table__nombre">Recommandent</th>
+                            <th scope="col" class="adm-table__nombre">Objectifs acquis</th>
+                            <th scope="col">Affiché sur le site</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ligne in lignes %}
+                            <tr>
+                                <td>
+                                    <a href="{{ path('app_admin_formation_voir', { id: ligne.formation.id }) }}"
+                                       class="adm-table__titre">{{ ligne.formation.nom }}</a>
+                                </td>
+                                <td class="adm-table__nombre">{{ ligne.mesure.sessions }}</td>
+                                <td class="adm-table__nombre">{{ ligne.mesure.formes }}</td>
+                                <td class="adm-table__nombre">{{ ligne.mesure.reponses }}</td>
+                                <td class="adm-table__nombre">{{ _self.note(ligne.mesure.note) }}</td>
+                                <td class="adm-table__nombre">{{ _self.taux(ligne.mesure.recommandation) }}</td>
+                                <td class="adm-table__nombre">{{ _self.taux(ligne.mesure.acquis) }}</td>
+                                <td>
+                                    {{ _self.note(ligne.publics.note) }}
+                                    · {{ ligne.publics.nbFormes ?? 0 }} formé{{ (ligne.publics.nbFormes ?? 0) > 1 ? 's' }}
+                                    {% if ligne.publics.recommandation is not null %}· {{ ligne.publics.recommandation }} % recommandent{% endif %}
+                                    {% if ligne.publics.acquis is not null %}· {{ ligne.publics.acquis }} % acquis{% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </section>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete"><h2>Comment lire ces chiffres</h2></header>
+        <div class="adm-carte__corps adm-detail">
+            <p class="adm-detail__texte">Personnes formées : participants ayant au moins une présence émargée.
+Satisfaction : moyenne de la note globale du questionnaire à chaud, sur 5.
+Objectifs acquis : part des objectifs notés « acquis » par le formateur, sur tous les objectifs évalués.
+
+Sur le site, la note et le nombre de personnes formées saisis sur la fiche d'une formation servent d'historique d'avant l'outil : ce qui est mesuré ici s'y ajoute (la colonne « Affiché sur le site » vaut pour toutes les années). Les taux de recommandation et d'objectifs acquis ne sont publiés qu'à partir de {{ seuil }} réponses pour une formation.</p>
+        </div>
+    </section>
+
+{% endblock %}

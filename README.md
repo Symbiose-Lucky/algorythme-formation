@@ -61,6 +61,9 @@ gestion interne (formations, sessions) ; la compléter à chaque nouveau module.
    « Évaluations » de la session (le questionnaire à froid s'ouvre 60 jours après la dernière séance).
 8 quater. **Envoi des documents** : sur la session de test, générer une convocation pour un participant
    dont l'adresse email est la vôtre, cliquer sur « Envoyer par email » et vérifier la pièce jointe reçue.
+8 quinquies. **Indicateurs** : la note et le nombre de personnes formées saisis sur chaque fiche deviennent
+   l'historique d'avant l'outil ; ce que l'outil mesure s'y ajoute sur le site. Ne plus augmenter ces deux
+   champs à la main une fois les sessions gérées ici. Contrôler `/admin/indicateurs`.
 9. Dans l'admin, relire les fiches importées et compléter ce que SmartOF ne portait pas
    (accessibilité, modalités propres à une formation).
 

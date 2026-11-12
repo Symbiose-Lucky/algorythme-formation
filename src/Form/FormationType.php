@@ -172,11 +172,13 @@ class FormationType extends AbstractType
                 'required' => false,
                 'html5' => true,
                 'attr' => ['min' => 0, 'max' => 5, 'step' => 0.1],
+                'help' => "Historique d'avant cet outil. Les réponses aux questionnaires à chaud s'y ajoutent sur le site.",
             ])
             ->add('nbFormes', IntegerType::class, [
                 'label' => 'Personnes formées',
                 'required' => false,
                 'attr' => ['min' => 0],
+                'help' => "Historique d'avant cet outil. Les participants émargés ici s'y ajoutent sur le site : ne plus l'augmenter à la main.",
             ]);
 
         if ($options['avec_motif']) {
