@@ -64,11 +64,17 @@ gestion interne (formations, sessions) ; la compléter à chaque nouveau module.
 8 quinquies. **Indicateurs** : la note et le nombre de personnes formées saisis sur chaque fiche deviennent
    l'historique d'avant l'outil ; ce que l'outil mesure s'y ajoute sur le site. Ne plus augmenter ces deux
    champs à la main une fois les sessions gérées ici. Contrôler `/admin/indicateurs`.
+8 sexies. **API de rédaction des fiches** (skill `creer-formation`) : elle est désactivée tant que
+   `APP_API_JETON` est vide. Pour que le skill écrive en production, y définir dans `.env.local` un
+   jeton long et aléatoire (`php -r "echo bin2hex(random_bytes(32));"`), différent de celui du poste
+   de développement, puis reporter sur ce poste, dans `.env.local`, `CREER_FORMATION_PROD_URL`
+   (l'adresse du site) et `CREER_FORMATION_PROD_JETON` (ce jeton). L'API ne publie rien : elle crée
+   des brouillons et réécrit des fiches, chaque fois avec une version.
 9. Dans l'admin, relire les fiches importées et compléter ce que SmartOF ne portait pas
    (accessibilité, modalités propres à une formation).
 
 ## Une fois l'import fait en production
 
 10. Le code d'accès à SmartOF ne sert plus : supprimer `SmartOfApiService`, l'entité `SmartOfAuth`
-    (et sa table, par une migration), la commande `formations:importer-smartof`, les variables
-    `SMARTOF_*` et le skill `.claude/skills/creer-formation` (ou le réécrire pour l'admin).
+    (et sa table, par une migration), la commande `formations:importer-smartof` et les variables
+    `SMARTOF_*`.

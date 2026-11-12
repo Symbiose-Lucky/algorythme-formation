@@ -1,56 +1,87 @@
 ---
 name: creer-formation
-description: Créer (ou réécrire) une formation dans SmartOF en s'inspirant d'une formation en ligne (URL d'un concurrent, d'un catalogue…). À utiliser quand l'utilisateur donne une URL de formation, demande de créer / ajouter / réécrire une formation ou une fiche produit SmartOF.
+description: Créer (ou réécrire) une fiche de formation du site en s'inspirant d'une formation en ligne (URL d'un concurrent, d'un catalogue…). À utiliser quand l'utilisateur donne une URL de formation, demande de créer / ajouter / réécrire une formation ou une fiche du catalogue.
 ---
 
-# Créer une formation SmartOF à partir d'une formation en ligne
+# Créer une fiche de formation à partir d'une formation en ligne
 
 Argument attendu : l'URL de la formation source, éventuellement suivie des tarifs INTER / INTRA
 et de consignes (durée, public…). S'il manque l'URL, la demander.
 
 Les échanges avec l'utilisateur se font en français.
 
+Les formations sont gérées par le site lui-même (admin `/admin/formations`), plus par SmartOF.
+Le skill écrit par l'API du site, qui crée une **version** à chaque enregistrement : rien n'est
+perdu, tout se retrouve dans l'historique de la fiche.
+
 ## Outil
 
-`node .claude/skills/creer-formation/smartof.mjs <endpoint> [payload.json]`, toujours précédé de
-`MSYS_NO_PATHCONV=1` sous Git Bash. Sortie : code HTTP en 1re ligne, puis le JSON.
-Écrire les fichiers de travail (payloads, sauvegardes) dans le scratchpad de la session.
+`node .claude/skills/creer-formation/formations.mjs [--prod] <action>` :
 
-Endpoints utiles : `/api/produit/list` (renvoie `{ produits: [...] }`), `/api/produit/get`
-(`{"produitFormationUid": "…"}`), `/api/produit/create`, `/api/produit/update`.
-Doc OpenAPI : `https://europe-west3-algorythme-formation-mobileo.cloudfunctions.net/docs/swagger/swagger-ui-init.js`
-(clé `swaggerDoc`).
+- `liste` : toutes les formations (code, nom, statut, domaine, durée).
+- `voir <CODE>` : une fiche complète.
+- `enregistrer <fiche.json> [--simuler]` : crée la formation si son code est inconnu, sinon la
+  modifie. Seuls les champs présents dans le fichier sont touchés. Avec `--simuler`, rien n'est
+  écrit : la réponse dit ce qui changerait.
+
+Sortie : code HTTP en 1re ligne, puis le JSON. Écrire les fichiers de travail (fiches,
+sauvegardes) dans le scratchpad de la session.
+
+**Local ou production.** Sans option, l'outil écrit dans le site local (le serveur Symfony doit
+tourner). Avec `--prod`, dans le site en ligne (`CREER_FORMATION_PROD_URL` et
+`CREER_FORMATION_PROD_JETON` de `.env.local`). Les deux bases sont distinctes : **demander à
+l'utilisateur où écrire** s'il ne l'a pas dit, et le rappeler dans le compte rendu. Une fiche créée
+en local n'existe pas en production.
 
 ## Déroulé
 
-1. **Lire la source** (WebFetch ; si le site bloque, passer par Chrome) : titre, durée, public,
-   prérequis, objectifs, programme, points forts.
-2. **Chercher les doublons** : `produit/list`, comparer noms et programmes. Si une formation proche
-   existe, le signaler et proposer : réécrire l'existante, créer une formation complémentaire,
-   ou changer de source. Ne pas créer de doublon sans accord.
+1. **Lire la source** (WebFetch ; si le site bloque, passer par le navigateur) : titre, durée,
+   public, prérequis, objectifs, programme, points forts.
+2. **Chercher les doublons** : `liste`, comparer noms et programmes (`voir`). Si une formation
+   proche existe, le signaler et proposer : réécrire l'existante, créer une formation
+   complémentaire, ou changer de source. Ne pas créer de doublon sans accord.
 3. **Rédiger une version originale.** S'inspirer, ne jamais recopier : autre découpage, autres
    formulations, ateliers qui nous ressemblent, contenu à jour. Un programme copié se repère
-   (concurrence, SEO). Prendre une fiche existante comme modèle de ton (`produit/get`).
+   (concurrence, SEO). Prendre une fiche publiée comme modèle de ton (`voir`).
 4. **Montrer le brouillon complet** à l'utilisateur et **attendre sa validation** avant tout
-   appel d'écriture.
-5. **Créer** avec `meta.status = "En cours de rédaction"` (invisible sur le site).
-6. **Vérifier** en relisant le produit via l'API (champ par champ), puis faire le point.
+   enregistrement. `--simuler` sert à contrôler la fiche avant de la montrer.
+5. **Enregistrer.** Une nouvelle formation est créée en **brouillon** (invisible sur le site).
+6. **Vérifier** en relisant la fiche (`voir`), traiter les `avertissements` de la réponse, puis
+   faire le point en donnant le lien `admin` de la fiche.
 
-## Format des champs (conventions validées par le client)
+## Format de la fiche (JSON)
 
-Payload de `produit/create` : `customId`, `updatedAt` (ISO, requis), `meta {nom, status}`,
-`description` (objet **complet**, tous les champs présents, `""` / `0` si vides,
-`annexe: {documentName: ""}`), `archived: false`, `custom_fields` (les 20, `""` si vides).
-`produit/update` : même chose + `produitFormationUid` ; partir d'un `produit/get` frais, ne modifier
-que les champs voulus, renvoyer `updatedAt` tel quel (sinon 400).
+```json
+{
+  "code": "PY-FOND",
+  "nom": "Python - les fondamentaux",
+  "domaine": "Développement informatique",
+  "accroche": "Une phrase pour la carte du catalogue.",
+  "dureeHeures": 21,
+  "tarifInterEuros": 2250,
+  "tarifIntraEuros": 7300,
+  "objectifs": "• …\n• …",
+  "publicVise": "• …",
+  "prerequis": "• …",
+  "programme": "JOUR 1 – …",
+  "ceQuiChange": "◦ …",
+  "motif": "Création d'après la demande du 12/11"
+}
+```
 
-- `meta.nom` : titre public (`intituleDeLaFormation` reste vide). Il donne l'URL de la page :
-  **ne pas renommer** une formation publiée.
-- `customId` : code court en majuscules (`PY-FOND`, `LLM-GEN`, `CHATGPT-INIT`).
-- `dureeDeLaFormation` : en heures, 7 h par jour. `modeDOrganisation` : `"Présentiel"`.
-- `objectifsDeLaFormation`, `publicVise`, `preRequis` : une ligne par point, préfixée `• `.
-  Objectifs formulés avec un verbe d'action, évaluables (Qualiopi).
-- `contenuDeLaFormation` :
+- `code` : code court en majuscules (`PY-FOND`, `LLM-GEN`, `CHATGPT-INIT`). C'est lui qui dit s'il
+  s'agit d'une création ou d'une modification : vérifier dans `liste` qu'il est libre.
+- `nom` : titre public. Il donne l'adresse de la page à la création. L'API refuse de renommer une
+  formation publiée (409) : cela se fait dans l'admin, en connaissance de cause.
+- `domaine` : **reprendre une valeur existante à l'identique** (voir `liste`), par ex.
+  `Intelligence Artificielle`, `Développement informatique`, `Big data et analytics`.
+- `dureeHeures` : en heures, 7 h par jour.
+- `tarifInterEuros`, `tarifIntraEuros` : en euros hors taxes, `null` si inconnu. À demander à
+  l'utilisateur s'il ne les a pas donnés.
+- `objectifs`, `publicVise`, `prerequis` : une ligne par point, préfixée `• `. Objectifs formulés
+  avec un verbe d'action, évaluables : ils servent ensuite au positionnement, à l'évaluation des
+  acquis et à l'attestation de fin de formation (Qualiopi). Quatre à huit objectifs.
+- `programme` :
   ```
   JOUR 1 – Titre de la journée
   ◦ Séquence (2h)
@@ -62,32 +93,27 @@ que les champs voulus, renvoyer `updatedAt` tel quel (sinon 400).
   ```
   - Titre de journée **sur la même ligne** que `JOUR n`, séparé par ` – `.
   - Formation d'**un seul jour** : pas de ligne `JOUR`, directement les `◦`.
-  - Chaque journée totalise 7 h ; vérifier que la somme des séquences = durée totale.
-- Champs perso :
-  - `custom_field_1` : `"oui"` pour mettre en page d'accueil (sinon `""`).
-  - `custom_field_2` : accroche du catalogue, une phrase.
-  - `custom_field_3` : nombre de professionnels formés → `"0"` pour une nouvelle formation.
-  - `custom_field_4` : domaine, **reprendre une valeur existante à l'identique** (ex.
-    `Intelligence Artificielle`, `Développement informatique`, `Big data et analytics`).
-  - `custom_field_5` : note sur 5 → `"0"` pour une nouvelle formation.
-  - `custom_field_6` : ancien sous-domaine, supprimé dans SmartOF → toujours `""`.
-  - `custom_field_7` : « Ce que ça change, concrètement », 3 blocs :
-    ```
-    ◦ Situation de travail
-    Aujourd'hui : ce qui se passe sans la formation (concret, une phrase).
-    Après : ce qui change après la formation (une phrase).
-    ```
-  - `custom_field_8` à `20` : libres.
-- Les champs de modalités (`modalitesPedagogiques`, `modalitesDEvaluationEtDeSuivi`,
-  `modalitesDAccesALaFormation`, `profilDuOuDesFormateurs`, `moyensEtSupportsPedagogiques`,
-  `lieuDeLaFormation`) sont vides sur toutes les fiches : les laisser vides, le site les gère.
+  - Chaque journée totalise 7 h. L'API avertit si la somme des séquences diffère de la durée.
+- `ceQuiChange` : « Ce que ça change, concrètement », 3 blocs :
+  ```
+  ◦ Situation de travail
+  Aujourd'hui : ce qui se passe sans la formation (concret, une phrase).
+  Après : ce qui change après la formation (une phrase).
+  ```
+- `lieu`, `methodes`, `moyens`, `evaluation`, `acces`, `accessibilite`, `profilFormateurs` :
+  vides sur la plupart des fiches, le site et les documents générés ont un texte par défaut. Ne
+  les remplir que si la formation a une particularité.
+- `motif` : la raison de l'enregistrement, conservée dans l'historique de la fiche.
 
-## Limites de l'API à annoncer à l'utilisateur
+Pour **réécrire** une fiche : partir d'un `voir` frais, n'envoyer que `code`, `motif` et les champs
+à changer.
 
-- **Tarifs** : l'API ne les expose pas. Après création, l'utilisateur ajoute à la main dans SmartOF
-  un tarif intitulé `INTER` et un tarif `INTRA` (le site lit ces intitulés).
-- **Hors BPF** : `produit/create` coche « hors BPF » par défaut ; à décocher à la main.
-- Passage en `Actif` : fait par l'utilisateur dans SmartOF après relecture. Le catalogue du site se
-  rafraîchit en 10 minutes au plus (cache).
+## Ce que l'API ne fait pas, à annoncer à l'utilisateur
 
-Le mapping côté site est dans `src/Service/CatalogueFormations.php`.
+- **Publier** : le statut se change dans l'admin, après relecture. Le catalogue lit la base
+  directement : une formation publiée apparaît tout de suite.
+- **Adresse de la page, mise en page d'accueil, note, nombre de personnes formées** : dans
+  l'admin. L'API refuse ces champs (400).
+
+L'API est dans `src/Controller/ApiFormationController.php` ; ce que le site affiche d'une fiche,
+dans `src/Service/CatalogueFormations.php`.

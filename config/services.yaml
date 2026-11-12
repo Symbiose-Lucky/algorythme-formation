@@ -11,6 +11,8 @@ parameters:
     app_url: '%env(APP_URL)%'
     # Où sont rangés les fichiers déposés dans l'admin : hors du dossier public.
     app_dossier_documents: '%env(resolve:APP_DOSSIER_DOCUMENTS)%'
+    # Jeton de l'API de rédaction des fiches (skill creer-formation). Vide : API désactivée.
+    app_api_jeton: '%env(APP_API_JETON)%'
 
 services:
     # default configuration for services in *this* file
