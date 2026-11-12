@@ -1,0 +1,97 @@
+{% extends 'signature/base.html.twig' %}
+
+{% import 'admin/session/_formats.html.twig' as formats %}
+
+{% set jours = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'] %}
+
+{% block title %}{{ session.formation.nom }}{% endblock %}
+
+{% block contenu %}
+
+    <p><a href="{{ retour }}">← Mes formations</a></p>
+
+    <section class="adm-carte">
+        <div class="adm-carte__corps">
+            <p class="adm-signer__sur-titre">
+                Session {{ session.reference }}{{ session.statut.value == 'annulee' ? ' · Annulée' }}
+            </p>
+            <h1 class="adm-signer__titre">{{ session.formation.nom }}</h1>
+            <p class="adm-signer__qui">{{ formats.dates(session) }}</p>
+        </div>
+        <div class="adm-carte__corps adm-espace__action">
+            <a href="{{ lienSession }}" class="adm-bouton adm-bouton--principal">
+                Feuille de présence et questionnaires
+            </a>
+        </div>
+    </section>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete">
+            <h2>Mes documents</h2>
+            <p class="adm-carte__compte">{{ documents|length }}</p>
+        </header>
+        {% if documents is empty %}
+            <p class="adm-vide">
+                Vos documents apparaîtront ici : la convocation avant la formation, le certificat de
+                réalisation et l'attestation de fin de formation ensuite.
+            </p>
+        {% else %}
+            <ul class="adm-liens">
+                {% for ligne in documents %}
+                    <li>
+                        <a href="{{ ligne.lien }}" target="_blank" rel="noopener"><strong>{{ ligne.libelle }}</strong></a>
+                        <span>PDF · établi le {{ ligne.document.deposeLe|date('d/m/Y', 'Europe/Paris') }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </section>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete"><h2>Organisation</h2></header>
+        <ul class="adm-liens">
+            <li><strong>Modalité</strong><span>{{ session.modalite.libelle }}</span></li>
+            <li><strong>Lieu</strong><span>{{ session.lieu ?: 'Précisé dans la convocation' }}</span></li>
+            {% if session.formateurs is not empty %}
+                <li>
+                    <strong>Formateur{{ session.formateurs|length > 1 ? 's' }}</strong>
+                    <span>{% for formateur in session.formateurs %}{{ formateur.libelle }}{{ not loop.last ? ', ' }}{% endfor %}</span>
+                </li>
+            {% endif %}
+            {% for seance in session.seancesTriees %}
+                <li>
+                    <strong>{{ jours[seance.jour|date('w')] }} {{ seance.jour|date('d/m/Y') }}</strong>
+                    <span>{{ seance.debut|date('H:i') }} – {{ seance.fin|date('H:i') }}</span>
+                </li>
+            {% else %}
+                <li><span>Les dates de cette formation ne sont pas encore fixées.</span></li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete"><h2>Programme</h2></header>
+        <div class="adm-carte__corps adm-espace__programme">
+            <h3>Objectifs</h3>
+            <ul>
+                {% for objectif in objectifs %}<li>{{ objectif }}</li>{% endfor %}
+            </ul>
+            {% for journee in deroule %}
+                {% if journee.titre %}
+                    <h3>{{ journee.titre }}{% if journee.duree %} <span class="adm-muet">· {{ journee.duree }}</span>{% endif %}</h3>
+                {% elseif loop.first %}
+                    <h3>Déroulé</h3>
+                {% endif %}
+                {% for sequence in journee.sequences %}
+                    <h4>{{ sequence.titre }}{% if sequence.duree %} <span class="adm-muet">· {{ sequence.duree }}</span>{% endif %}</h4>
+                    {% if sequence.points %}
+                        <ul>
+                            {% for point in sequence.points %}<li>{{ point }}</li>{% endfor %}
+                        </ul>
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+        </div>
+    </section>
+
+{% endblock %}

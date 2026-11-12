@@ -138,11 +138,8 @@ class EmargementController extends AbstractController
             'aSigner' => $peutSigner ? $aSigner : null,
             'inscriptionAnnulee' => !$peutSigner,
             'questionnaires' => $this->questionnaires($request, $session, $inscription),
-            // Le formateur peut revenir à son espace, où sont toutes ses sessions.
-            'espace' => $formateur === null || $formateur->isArchive() ? null : $this->generateUrl('app_espace_formateur', [
-                'id' => $formateur->getId(),
-                'jeton' => $this->jetons->pour(EspaceFormateurController::sujet($formateur)),
-            ]),
+            // Chacun peut revenir à son espace, où sont toutes ses sessions.
+            'espace' => $this->espace($inscription, $formateur),
             'erreur' => $erreur,
         ], new Response(status: $erreur === null ? 200 : 422));
     }
@@ -223,6 +220,24 @@ class EmargementController extends AbstractController
         }
 
         return $lignes;
+    }
+
+    /** L'adresse de l'espace personnel de la personne ; null si elle est archivée. */
+    private function espace(?Inscription $inscription, ?Formateur $formateur): ?string
+    {
+        if ($formateur !== null) {
+            return $formateur->isArchive() ? null : $this->generateUrl('app_espace_formateur', [
+                'id' => $formateur->getId(),
+                'jeton' => $this->jetons->pour(EspaceFormateurController::sujet($formateur)),
+            ]);
+        }
+
+        $participant = $inscription?->getParticipant();
+
+        return $participant === null || $participant->isArchive() ? null : $this->generateUrl('app_espace_participant', [
+            'id' => $participant->getId(),
+            'jeton' => $this->jetons->pour(EspaceParticipantController::sujet($participant)),
+        ]);
     }
 
     private function seance(SessionFormation $session, int $id): ?Seance

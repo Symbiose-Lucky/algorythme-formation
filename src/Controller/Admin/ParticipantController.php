@@ -2,20 +2,25 @@
 
 namespace App\Controller\Admin;
 
+use App\Controller\EspaceParticipantController;
 use App\Entity\Client;
 use App\Entity\Inscription;
 use App\Entity\Journalisable;
 use App\Entity\Participant;
 use App\Entity\SessionFormation;
 use App\Form\ParticipantType;
+use App\Service\Jetons;
+use App\Service\MailService;
 use App\Service\SuiviSessions;
 use Doctrine\ORM\QueryBuilder;
 use DomainException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Service\Attribute\Required;
+use Throwable;
 
 #[IsGranted('ROLE_ADMIN')]
 #[Route('/admin/participants', name: 'app_admin_participant')]
@@ -27,6 +32,62 @@ class ParticipantController extends AbstractFicheController
     public function setSuivi(SuiviSessions $suivi): void
     {
         $this->suivi = $suivi;
+    }
+
+    private Jetons $jetons;
+
+    #[Required]
+    public function setJetons(Jetons $jetons): void
+    {
+        $this->jetons = $jetons;
+    }
+
+    /** Envoie au participant le lien de son espace personnel. */
+    #[Route('/{id}/espace/envoyer', name: '_espace_envoyer', requirements: ['id' => '\d+'], methods: ['POST'])]
+    public function envoyerEspace(int $id, Request $request, MailService $mails): Response
+    {
+        if (!$this->isCsrfTokenValid('submit', $request->request->getString('_csrf_token'))) {
+            throw $this->createAccessDeniedException('Jeton CSRF invalide.');
+        }
+
+        $participant = $this->fiche($id);
+        assert($participant instanceof Participant);
+
+        if ($participant->isArchive() || $participant->getEmail() === '') {
+            $this->addFlash('erreur', "Ce participant est archivé ou n'a pas d'adresse email : rien n'a été envoyé.");
+        } else {
+            try {
+                $mails->sendLienEspaceParticipant($participant->getEmail(), $this->lienEspace($participant));
+                $this->addFlash('succes', 'Lien de son espace envoyé à ' . $participant->getEmail() . '.');
+            } catch (Throwable) {
+                $this->addFlash('erreur', "L'envoi de l'email a échoué.");
+            }
+        }
+
+        return $this->redirectToRoute('app_admin_participant_voir', ['id' => $id]);
+    }
+
+    protected function complement(Journalisable $fiche): ?string
+    {
+        assert($fiche instanceof Participant);
+
+        // Un participant archivé n'a plus d'espace.
+        return $fiche->isArchive() ? null : $this->renderView('admin/fiche/_espace.html.twig', [
+            'titre' => 'Espace participant',
+            'description' => 'Un lien personnel et permanent, sans compte : toutes ses formations, leur programme, ses documents.',
+            'lien' => $this->lienEspace($fiche),
+            'email' => $fiche->getEmail(),
+            'routeEnvoi' => 'app_admin_participant_espace_envoyer',
+            'id' => $fiche->getId(),
+        ]);
+    }
+
+    private function lienEspace(Participant $participant): string
+    {
+        return $this->generateUrl('app_espace_participant', [
+            'id' => $participant->getId(),
+            'jeton' => $this->jetons->pour(EspaceParticipantController::sujet($participant)),
+        ], UrlGeneratorInterface::ABSOLUTE_URL);
     }
 
     protected function classe(): string

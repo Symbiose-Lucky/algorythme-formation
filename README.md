@@ -70,8 +70,9 @@ gestion interne (formations, sessions) ; la compléter à chaque nouveau module.
    de développement, puis reporter sur ce poste, dans `.env.local`, `CREER_FORMATION_PROD_URL`
    (l'adresse du site) et `CREER_FORMATION_PROD_JETON` (ce jeton). L'API ne publie rien : elle crée
    des brouillons et réécrit des fiches, chaque fois avec une version.
-8 septies. **Espace formateur** : sur la fiche d'un formateur, ouvrir « son espace » et vérifier qu'il liste
-   ses sessions ; lui envoyer le lien par email (bouton de la même carte).
+8 septies. **Espaces personnels** : sur la fiche d'un formateur puis d'un participant, ouvrir « son espace »
+   et vérifier qu'il liste ses sessions (et, pour le participant, que ses documents s'ouvrent) ; envoyer
+   le lien par email (bouton de la même carte).
 9. Dans l'admin, relire les fiches importées et compléter ce que SmartOF ne portait pas
    (accessibilité, modalités propres à une formation).
 

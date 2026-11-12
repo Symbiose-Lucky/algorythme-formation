@@ -59,9 +59,13 @@ class FormateurController extends AbstractFicheController
         assert($fiche instanceof Formateur);
 
         // Un formateur archivé n'a plus d'espace.
-        return $fiche->isArchive() ? null : $this->renderView('admin/formateur/_espace.html.twig', [
-            'formateur' => $fiche,
+        return $fiche->isArchive() ? null : $this->renderView('admin/fiche/_espace.html.twig', [
+            'titre' => 'Espace formateur',
+            'description' => 'Un lien personnel et permanent, sans compte : toutes ses sessions, leur programme, leurs participants.',
             'lien' => $this->lienEspace($fiche),
+            'email' => $fiche->getEmail(),
+            'routeEnvoi' => 'app_admin_formateur_espace_envoyer',
+            'id' => $fiche->getId(),
         ]);
     }
 

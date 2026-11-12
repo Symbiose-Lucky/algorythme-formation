@@ -8,7 +8,7 @@
 {% block contenu %}
 
     {% if espace %}
-        <p><a href="{{ espace }}">← Mes sessions</a></p>
+        <p><a href="{{ espace }}">← {{ formateur ? 'Mes sessions' : 'Mes formations' }}</a></p>
     {% endif %}
 
     <section class="adm-carte">
