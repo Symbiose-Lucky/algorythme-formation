@@ -4,8 +4,9 @@ namespace App\Form;
 
 use App\Entity\Formation;
 use App\Enum\StatutFormation;
+use App\Repository\FormationRepository;
+use App\Service\CodesFormation;
 use Symfony\Component\Form\AbstractType;
-use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\EnumType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\MoneyType;
@@ -27,33 +28,49 @@ class FormationType extends AbstractType
 {
     public function __construct(
         private readonly SluggerInterface $slugger,
+        private readonly CodesFormation      $codes,
+        private readonly FormationRepository $formations,
     )
     {
+    }
+
+    /**
+     * L'adresse tirée de l'intitulé, suivie d'un numéro si une autre
+     * formation l'a déjà : python-fondamentaux, python-fondamentaux-2…
+     */
+    private function slugLibre(string $nom): string
+    {
+        $base = mb_substr($this->slugger->slug($nom)->lower()->toString(), 0, 190);
+        $slug = $base;
+
+        for ($numero = 2; $this->formations->findOneBy(['slug' => $slug]) !== null; $numero++) {
+            $slug = $base . '-' . $numero;
+        }
+
+        return $slug;
     }
 
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $puces = 'Une ligne par point.';
 
+        // On n'archive qu'une formation qui existe déjà : à la création, le
+        // choix « Archivée » n'est pas proposé.
+        $creation = $builder->getData()?->getId() === null;
+        $statuts = array_values(array_filter(
+            StatutFormation::cases(),
+            static fn(StatutFormation $statut) => !$creation || $statut !== StatutFormation::Archivee,
+        ));
+
         $builder
             ->add('nom', TextType::class, [
                 'label' => 'Intitulé',
                 'empty_data' => '',
             ])
-            ->add('code', TextType::class, [
-                'label' => 'Code',
-                'empty_data' => '',
-                'help' => 'Court, en majuscules : PY-FOND, LLM-GEN.',
-            ])
-            ->add('slug', TextType::class, [
-                'label' => 'Adresse de la page',
-                'required' => false,
-                'empty_data' => '',
-                'help' => "Laissée vide, elle est tirée de l'intitulé. À ne plus changer une fois la formation publiée.",
-            ])
             ->add('statut', EnumType::class, [
                 'label' => 'Statut',
                 'class' => StatutFormation::class,
+                'choices' => $statuts,
                 'choice_label' => static fn(StatutFormation $statut) => $statut->libelle(),
             ])
             ->add('domaine', TextType::class, [
@@ -66,10 +83,6 @@ class FormationType extends AbstractType
                 'required' => false,
                 'attr' => ['rows' => 2],
                 'help' => 'Une phrase, affichée sur la carte du catalogue.',
-            ])
-            ->add('enPageAccueil', CheckboxType::class, [
-                'label' => "Mettre en avant sur la page d'accueil",
-                'required' => false,
             ])
             ->add('dureeHeures', NumberType::class, [
                 'label' => 'Durée (heures)',
@@ -191,12 +204,22 @@ class FormationType extends AbstractType
             ]);
         }
 
-        // Avant la validation : une adresse laissée vide est tirée de l'intitulé.
+        // Avant la validation : l'adresse de la page et le code sont tirés de
+        // l'intitulé à la création, puis ne changent plus (les liens diffusés
+        // restent valables).
         $builder->addEventListener(FormEvents::SUBMIT, function (FormEvent $event): void {
             $formation = $event->getData();
 
-            if ($formation instanceof Formation && $formation->getSlug() === '' && $formation->getNom() !== '') {
-                $formation->setSlug($this->slugger->slug($formation->getNom())->lower()->toString());
+            if (!$formation instanceof Formation || $formation->getNom() === '') {
+                return;
+            }
+
+            if ($formation->getSlug() === '') {
+                $formation->setSlug($this->slugLibre($formation->getNom()));
+            }
+
+            if ($formation->getCode() === '') {
+                $formation->setCode($this->codes->generer($formation->getNom()));
             }
         });
     }

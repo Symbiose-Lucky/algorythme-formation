@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\Formation;
 use App\Enum\StatutFormation;
 use App\Repository\FormationRepository;
+use App\Service\CodesFormation;
 use App\Service\HistoriqueFormations;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -43,6 +44,7 @@ class ApiFormationController extends AbstractController
     public function __construct(
         private readonly FormationRepository  $formations,
         private readonly HistoriqueFormations $historique,
+        private readonly CodesFormation       $codes,
         private readonly ValidatorInterface   $validateur,
         private readonly SluggerInterface     $slugger,
         #[Autowire('%app_api_jeton%')]
@@ -86,8 +88,8 @@ class ApiFormationController extends AbstractController
     }
 
     /**
-     * Crée la formation si son code est inconnu (en brouillon), sinon la
-     * modifie. Seuls les champs présents dans la requête sont touchés.
+     * Crée la formation si son code est inconnu ou absent (en brouillon ;
+     * sans code, il est tiré de l'intitulé), sinon la modifie. Seuls les champs présents dans la requête sont touchés.
      * Avec « simuler », rien n'est écrit : la réponse dit ce qui changerait.
      */
     #[Route('', name: '_enregistrer', methods: ['POST'])]
@@ -99,9 +101,12 @@ class ApiFormationController extends AbstractController
 
         $donnees = json_decode($request->getContent(), true);
 
-        if (!is_array($donnees) || trim((string)($donnees['code'] ?? '')) === '') {
-            return $this->reponse(['erreur' => 'Corps JSON attendu, avec au moins « code ».'], Response::HTTP_BAD_REQUEST);
+        if (!is_array($donnees)
+            || (trim((string)($donnees['code'] ?? '')) === '' && trim((string)($donnees['nom'] ?? '')) === '')) {
+            return $this->reponse(['erreur' => 'Corps JSON attendu, avec « code » (modification) ou « nom » (création).'], Response::HTTP_BAD_REQUEST);
         }
+
+        $code = mb_strtoupper(trim((string)($donnees['code'] ?? '')));
 
         $inconnus = array_values(array_diff(array_keys($donnees), self::TEXTES, self::AUTRES));
 
@@ -112,11 +117,11 @@ class ApiFormationController extends AbstractController
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        $formation = $this->formations->findOneBy(['code' => mb_strtoupper(trim((string)$donnees['code']))]);
+        $formation = $code === '' ? null : $this->formations->findOneBy(['code' => $code]);
         $creation = $formation === null;
 
         if ($creation) {
-            $formation = (new Formation())->setCode((string)$donnees['code']);
+            $formation = (new Formation())->setCode($code);
         }
 
         $avant = $formation->instantane();
@@ -135,6 +140,10 @@ class ApiFormationController extends AbstractController
 
         if ($creation) {
             $formation->setSlug($this->slugger->slug($formation->getNom())->lower()->toString());
+
+            if ($formation->getCode() === '') {
+                $formation->setCode($this->codes->generer($formation->getNom()));
+            }
         }
 
         foreach (self::TEXTES as $champ) {

@@ -34,12 +34,9 @@
         <header class="adm-carte__tete"><h2>Identité</h2></header>
         <div class="adm-carte__corps adm-grille">
             <div class="adm-grille__large">{{ form_row(form.nom) }}</div>
-            {{ form_row(form.code) }}
             {{ form_row(form.statut) }}
             {{ form_row(form.domaine) }}
-            {{ form_row(form.slug) }}
             <div class="adm-grille__large">{{ form_row(form.accroche) }}</div>
-            <div class="adm-grille__large">{{ form_row(form.enPageAccueil) }}</div>
         </div>
         <datalist id="domaines">
             {% for domaine in domaines %}

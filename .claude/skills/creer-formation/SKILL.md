@@ -20,8 +20,8 @@ perdu, tout se retrouve dans l'historique de la fiche.
 
 - `liste` : toutes les formations (code, nom, statut, domaine, durée).
 - `voir <CODE>` : une fiche complète.
-- `enregistrer <fiche.json> [--simuler]` : crée la formation si son code est inconnu, sinon la
-  modifie. Seuls les champs présents dans le fichier sont touchés. Avec `--simuler`, rien n'est
+- `enregistrer <fiche.json> [--simuler]` : crée la formation si le fichier n'a pas de code (ou
+  un code inconnu), sinon la modifie. Seuls les champs présents dans le fichier sont touchés. Avec `--simuler`, rien n'est
   écrit : la réponse dit ce qui changerait.
 
 Sortie : code HTTP en 1re ligne, puis le JSON. Écrire les fichiers de travail (fiches,
@@ -53,7 +53,6 @@ en local n'existe pas en production.
 
 ```json
 {
-  "code": "PY-FOND",
   "nom": "Python - les fondamentaux",
   "domaine": "Développement informatique",
   "accroche": "Une phrase pour la carte du catalogue.",
@@ -69,8 +68,9 @@ en local n'existe pas en production.
 }
 ```
 
-- `code` : code court en majuscules (`PY-FOND`, `LLM-GEN`, `CHATGPT-INIT`). C'est lui qui dit s'il
-  s'agit d'une création ou d'une modification : vérifier dans `liste` qu'il est libre.
+- `code` : **à omettre pour une création** : le site le tire de l'intitulé (7 caractères au plus,
+  unique, par ex. `PYT-FON`) et le renvoie dans la réponse (`fiche.code`). Pour une modification,
+  donner le code de la formation : c'est lui qui la désigne.
 - `nom` : titre public. Il donne l'adresse de la page à la création. L'API refuse de renommer une
   formation publiée (409) : cela se fait dans l'admin, en connaissance de cause.
 - `domaine` : **reprendre une valeur existante à l'identique** (voir `liste`), par ex.

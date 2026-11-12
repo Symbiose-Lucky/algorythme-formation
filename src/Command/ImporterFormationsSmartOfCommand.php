@@ -144,7 +144,6 @@ class ImporterFormationsSmartOfCommand extends Command
             })
             ->setDomaine($champs['custom_field_4'] ?? '')
             ->setAccroche($champs['custom_field_2'] ?? '')
-            ->setEnPageAccueil(mb_strtolower(trim((string)($champs['custom_field_1'] ?? ''))) === 'oui')
             ->setDureeHeures($heures > 0 ? $heures : null)
             ->setLieu($description['lieuDeLaFormation'] ?? '')
             ->setTarifInterHT($tarifs['inter'])

@@ -25,6 +25,7 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
  * programme tel qu'il était à une date donnée.
  */
 #[ORM\Entity(repositoryClass: FormationRepository::class)]
+#[ORM\HasLifecycleCallbacks]
 #[ORM\UniqueConstraint(name: 'UNIQ_FORMATION_CODE', fields: ['code'])]
 #[ORM\UniqueConstraint(name: 'UNIQ_FORMATION_SLUG', fields: ['slug'])]
 #[ORM\UniqueConstraint(name: 'UNIQ_FORMATION_SMARTOF', fields: ['smartofUid'])]
@@ -43,7 +44,6 @@ class Formation
         'statut' => 'Statut',
         'domaine' => 'Domaine',
         'accroche' => 'Accroche',
-        'enPageAccueil' => "En page d'accueil",
         'dureeHeures' => 'Durée',
         'lieu' => 'Lieu',
         'tarifInterHT' => 'Tarif inter HT',
@@ -66,17 +66,29 @@ class Formation
     /** Ce qu'une formation doit contenir pour être publiée. */
     private const array REQUIS_POUR_PUBLIER = ['objectifs', 'publicVise', 'prerequis', 'programme'];
 
+    /** Longueur maximale d'un nouveau code. */
+    public const int CODE_MAX = 7;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
 
-    /** Code interne court : « PY-FOND », « LLM-GEN ». */
+    /**
+     * Code interne court : « PY-FOND », « LLM-GEN ». Laissé vide à la
+     * création, il est tiré de l'intitulé (voir CodesFormation).
+     */
     #[ORM\Column(length: 40)]
     #[Assert\NotBlank(message: 'Le code est obligatoire.')]
     #[Assert\Length(max: 40)]
     #[Assert\Regex(pattern: '/^[A-Z0-9][A-Z0-9-]*$/', message: 'Majuscules, chiffres et tirets uniquement.')]
     private string $code = '';
+
+    /**
+     * Le code tel qu'il était en base. Les codes d'avant la limite de
+     * CODE_MAX caractères restent valables tant qu'on ne les change pas.
+     */
+    private ?string $codeCharge = null;
 
     #[ORM\Column(length: 200)]
     #[Assert\NotBlank(message: "L'intitulé est obligatoire.")]
@@ -102,9 +114,6 @@ class Formation
 
     #[ORM\Column(type: Types::TEXT)]
     private string $accroche = '';
-
-    #[ORM\Column]
-    private bool $enPageAccueil = false;
 
     /** 7 heures par journée de formation. */
     #[ORM\Column(nullable: true)]
@@ -223,6 +232,22 @@ class Formation
         $this->modifieLe = $modifieLe;
     }
 
+    #[ORM\PostLoad]
+    public function retenirCodeCharge(): void
+    {
+        $this->codeCharge = $this->code;
+    }
+
+    #[Assert\Callback]
+    public function validerLongueurCode(ExecutionContextInterface $contexte): void
+    {
+        if ($this->code !== $this->codeCharge && mb_strlen($this->code) > self::CODE_MAX) {
+            $contexte->buildViolation(sprintf('%d caractères au plus.', self::CODE_MAX))
+                ->atPath('code')
+                ->addViolation();
+        }
+    }
+
     /**
      * Un brouillon peut rester incomplet ; une formation publiée doit
      * porter son programme et les informations que le public attend.
@@ -320,17 +345,6 @@ class Formation
         return $this;
     }
 
-    public function isEnPageAccueil(): bool
-    {
-        return $this->enPageAccueil;
-    }
-
-    public function setEnPageAccueil(bool $enPageAccueil): static
-    {
-        $this->enPageAccueil = $enPageAccueil;
-
-        return $this;
-    }
 
     public function getDureeHeures(): ?float
     {
