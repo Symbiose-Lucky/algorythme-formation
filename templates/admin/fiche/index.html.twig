@@ -17,10 +17,10 @@
 
 {% block contenu %}
 
-    <section class="adm-carte">
+    <section class="adm-carte" data-controller="filtre">
 
         <header class="adm-carte__tete">
-            <nav class="adm-onglets" aria-label="Filtrer">
+            <nav class="adm-onglets" aria-label="Filtrer" data-filtre-target="zone">
                 <a href="{{ path(route, recherche ? { q: recherche } : {}) }}" {{ not archives ? 'aria-current="true"' }}>
                     Actifs <span>{{ nombres.actifs }}</span>
                 </a>
@@ -30,16 +30,17 @@
                 </a>
             </nav>
 
-            <form method="get" action="{{ path(route) }}" class="adm-recherche" role="search">
+            <form method="get" action="{{ path(route) }}" class="adm-recherche" role="search" data-filtre-target="formulaire" data-action="submit->filtre#envoyer">
                 {% if archives %}
                     <input type="hidden" name="archives" value="1">
                 {% endif %}
                 <label for="q" class="adm-sr">Rechercher</label>
-                <input type="search" id="q" name="q" value="{{ recherche }}" placeholder="{{ libelles.recherche }}">
-                <button type="submit" class="adm-bouton adm-bouton--discret">Rechercher</button>
+                <input type="search" id="q" name="q" value="{{ recherche }}" placeholder="{{ libelles.recherche }}" data-action="input->filtre#saisir search->filtre#envoyer" autocomplete="off">
+                <button type="submit" class="adm-bouton adm-bouton--discret" data-filtre-target="bouton">Rechercher</button>
             </form>
         </header>
 
+        <div data-filtre-target="zone">
         {% if lignes is empty %}
             <p class="adm-vide">
                 {{ recherche ? 'Aucun résultat pour « ' ~ recherche ~ ' ».' : libelles.vide }}
@@ -71,6 +72,7 @@
                 </table>
             </div>
         {% endif %}
+        </div>
 
     </section>
 

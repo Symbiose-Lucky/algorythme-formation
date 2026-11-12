@@ -170,11 +170,11 @@
                             <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}"
                                    data-controller="csrf-protection">
                             <div class="adm-champ">
-                                <label for="signataire-nom">Nom</label>
+                                <label for="signataire-nom" class="required">Nom</label>
                                 <input type="text" id="signataire-nom" name="nom" maxlength="200" required>
                             </div>
                             <div class="adm-champ">
-                                <label for="signataire-email">Email</label>
+                                <label for="signataire-email" class="required">Email</label>
                                 <input type="email" id="signataire-email" name="email" maxlength="180" required>
                             </div>
                             <button type="submit" class="adm-bouton adm-bouton--discret">Ajouter</button>

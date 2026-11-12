@@ -639,6 +639,16 @@ body.adm {
         font-weight: 500;
     }
 
+    // Champ obligatoire : astérisque rouge après le libellé. L'attribut
+    // `required` du champ suffit aux lecteurs d'écran, d'où le texte
+    // alternatif vide (la première ligne sert aux navigateurs anciens).
+    label.required::after {
+        content: " *";
+        content: " *" / "";
+        color: var(--adm-erreur);
+        font-weight: 600;
+    }
+
     input {
         width: 100%;
         min-height: 38px;

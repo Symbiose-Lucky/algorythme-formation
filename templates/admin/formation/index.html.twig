@@ -18,11 +18,11 @@
 
 {% block contenu %}
 
-    <section class="adm-carte">
+    <section class="adm-carte" data-controller="filtre">
 
         <header class="adm-carte__tete">
             {# Filtre par statut : « En cours » réunit brouillons et publiées. #}
-            <nav class="adm-onglets" aria-label="Filtrer par statut">
+            <nav class="adm-onglets" aria-label="Filtrer par statut" data-filtre-target="zone">
                 <a href="{{ path('app_admin_formation', recherche ? { q: recherche } : {}) }}"
                    {{ statut is null ? 'aria-current="true"' }}>
                     En cours <span>{{ nombres.brouillon + nombres.publiee }}</span>
@@ -36,16 +36,17 @@
                 {% endfor %}
             </nav>
 
-            <form method="get" action="{{ path('app_admin_formation') }}" class="adm-recherche" role="search">
+            <form method="get" action="{{ path('app_admin_formation') }}" class="adm-recherche" role="search" data-filtre-target="formulaire" data-action="submit->filtre#envoyer">
                 {% if statut %}
                     <input type="hidden" name="statut" value="{{ statut.value }}">
                 {% endif %}
                 <label for="q" class="adm-sr">Rechercher une formation</label>
-                <input type="search" id="q" name="q" value="{{ recherche }}" placeholder="Nom, code ou domaine">
-                <button type="submit" class="adm-bouton adm-bouton--discret">Rechercher</button>
+                <input type="search" id="q" name="q" value="{{ recherche }}" placeholder="Nom, code ou domaine" data-action="input->filtre#saisir search->filtre#envoyer" autocomplete="off">
+                <button type="submit" class="adm-bouton adm-bouton--discret" data-filtre-target="bouton">Rechercher</button>
             </form>
         </header>
 
+        <div data-filtre-target="zone">
         {% if formations is empty %}
             <p class="adm-vide">
                 {% if recherche %}
@@ -97,6 +98,7 @@
                 </table>
             </div>
         {% endif %}
+        </div>
 
     </section>
 

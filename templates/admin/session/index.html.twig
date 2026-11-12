@@ -19,7 +19,7 @@
 
     {% set filtre = formation ? { formation: formation.id } : {} %}
 
-    <section class="adm-carte">
+    <section class="adm-carte" data-controller="filtre">
 
         <header class="adm-carte__tete">
             <nav class="adm-onglets" aria-label="Filtrer par période">
@@ -31,10 +31,10 @@
                 {% endfor %}
             </nav>
 
-            <form method="get" action="{{ path('app_admin_session') }}" class="adm-recherche">
+            <form method="get" action="{{ path('app_admin_session') }}" class="adm-recherche" data-filtre-target="formulaire">
                 <input type="hidden" name="periode" value="{{ periode }}">
                 <label for="formation" class="adm-sr">Filtrer par formation</label>
-                <select id="formation" name="formation">
+                <select id="formation" name="formation" data-action="change->filtre#naviguer">
                     <option value="">Toutes les formations</option>
                     {% for choix in formations %}
                         <option value="{{ choix.id }}" {{ formation and formation.id == choix.id ? 'selected' }}>
@@ -42,7 +42,7 @@
                         </option>
                     {% endfor %}
                 </select>
-                <button type="submit" class="adm-bouton adm-bouton--discret">Filtrer</button>
+                <button type="submit" class="adm-bouton adm-bouton--discret" data-filtre-target="bouton">Filtrer</button>
             </form>
         </header>
 
