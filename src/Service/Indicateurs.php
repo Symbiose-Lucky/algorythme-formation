@@ -176,6 +176,43 @@ class Indicateurs
     }
 
     /**
+     * Ce que le site affiche pour l'organisme entier : la somme des
+     * formations, selon les mêmes règles que publics(). La note est la
+     * moyenne de toutes les notes, historique compris, chacune pesant le
+     * nombre de personnes qu'elle représente.
+     *
+     * @param iterable<Formation> $formations Toutes les formations, archivées comprises.
+     *
+     * @return array{note: ?float, nbFormes: ?int, recommandation: ?int, acquis: ?int}
+     */
+    public function ensemble(iterable $formations): array
+    {
+        $total = $this->total($this->parFormation());
+        $lisible = $this->lisible($total);
+
+        $somme = (float)$total['sommeNotes'];
+        $poids = $total['reponses'];
+        $formes = $total['formes'];
+
+        foreach ($formations as $formation) {
+            $historique = max(0, (int)$formation->getNbFormes());
+            $formes += $historique;
+
+            if ($formation->getNote() > 0) {
+                $somme += $formation->getNote() * max(1, $historique);
+                $poids += max(1, $historique);
+            }
+        }
+
+        return [
+            'note' => $poids > 0 ? round($somme / $poids, 1) : null,
+            'nbFormes' => $formes > 0 ? $formes : null,
+            'recommandation' => $total['avisRecommandation'] >= self::SEUIL_PUBLICATION ? $lisible['recommandation'] : null,
+            'acquis' => $total['evalues'] >= self::SEUIL_PUBLICATION ? $lisible['acquis'] : null,
+        ];
+    }
+
+    /**
      * Ce que le site affiche pour une formation.
      *
      * La note et le nombre de personnes formées saisis sur la fiche sont

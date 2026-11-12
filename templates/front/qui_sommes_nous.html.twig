@@ -95,6 +95,44 @@
                 </div>
             </section>
 
+            {# Indicateurs de résultats (Indicateurs::ensemble) : chaque chiffre
+               ne s'affiche que s'il existe. #}
+            {% if resultats.nbFormes or resultats.note %}
+                <section class="pg-bloc" id="resultats">
+                    <h2>Nos résultats</h2>
+                    <p class="pg-intro">
+                        Mesurés auprès des participants à la fin de chaque formation, et mis à jour
+                        à chaque session.
+                    </p>
+                    <dl class="pg-chiffres">
+                        {% if resultats.nbFormes %}
+                            <div>
+                                <dt>Professionnel{{ resultats.nbFormes > 1 ? 's' }} formé{{ resultats.nbFormes > 1 ? 's' }}</dt>
+                                <dd>{{ resultats.nbFormes|number_format(0, ',', ' ') }}</dd>
+                            </div>
+                        {% endif %}
+                        {% if resultats.note %}
+                            <div>
+                                <dt>Satisfaction des participants</dt>
+                                <dd>{{ resultats.note|number_format(1, ',') }}<span>/5</span></dd>
+                            </div>
+                        {% endif %}
+                        {% if resultats.recommandation is not null %}
+                            <div>
+                                <dt>Recommandent leur formation</dt>
+                                <dd>{{ resultats.recommandation }}<span> %</span></dd>
+                            </div>
+                        {% endif %}
+                        {% if resultats.acquis is not null %}
+                            <div>
+                                <dt>Objectifs acquis en fin de formation</dt>
+                                <dd>{{ resultats.acquis }}<span> %</span></dd>
+                            </div>
+                        {% endif %}
+                    </dl>
+                </section>
+            {% endif %}
+
             <section class="pg-bloc" id="formateurs">
                 <h2>Nos formateurs</h2>
                 <p class="pg-intro">

@@ -3,7 +3,9 @@
 namespace App\Controller;
 
 use AllowDynamicProperties;
+use App\Repository\FormationRepository;
 use App\Service\CatalogueFormations;
+use App\Service\Indicateurs;
 use App\Service\MailService;
 use App\Service\QuotaOrientation;
 use Doctrine\DBAL\Connection;
@@ -233,13 +235,15 @@ class MainController extends AbstractController
     }
 
     /**
-     * Page éditoriale : méthode et formateurs. Tout le texte est dans le
-     * template, rien ne vient du catalogue.
+     * Page éditoriale : méthode, résultats et formateurs. Le texte est dans
+     * le template ; seuls les indicateurs de résultats sont calculés.
      */
     #[Route('/qui-sommes-nous', name: 'app_qui_sommes_nous')]
-    public function quiSommesNous(): Response
+    public function quiSommesNous(Indicateurs $indicateurs, FormationRepository $formations): Response
     {
-        return $this->render('front/qui_sommes_nous.html.twig');
+        return $this->render('front/qui_sommes_nous.html.twig', [
+            'resultats' => $indicateurs->ensemble($formations->findAll()),
+        ]);
     }
 
     #[Route('/mentions-legales', name: 'app_mentions_legales')]
