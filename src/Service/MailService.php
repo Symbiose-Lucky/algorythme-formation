@@ -128,15 +128,16 @@ class MailService
      * Envoie à un participant un document de sa session, en pièce jointe :
      * convocation, certificat de réalisation, attestation de fin de formation.
      *
-     * @param string $modele  « convocations », « certificats » ou « attestations »
-     * @param string $contenu Le fichier PDF
+     * @param string  $modele     « convocations », « certificats » ou « attestations »
+     * @param string  $contenu    Le fichier PDF
+     * @param ?string $lienEspace L'espace personnel du participant, proposé par un bouton
      *
      * @throws BrevoException
      * @throws LoaderError
      * @throws RuntimeError
      * @throws SyntaxError
      */
-    public function sendDocumentSession(string $destinataire, SessionFormation $session, string $modele, string $nomFichier, string $contenu): void
+    public function sendDocumentSession(string $destinataire, SessionFormation $session, string $modele, string $nomFichier, string $contenu, ?string $lienEspace = null): void
     {
         $nom = $session->getFormation()->getNom();
         $formation = htmlspecialchars($nom);
@@ -161,10 +162,14 @@ class MailService
             ],
         };
 
+        $espace = $lienEspace === null ? '' : "<p>Vous retrouvez aussi cette formation dans votre espace personnel :
+            le programme, vos documents, votre feuille de présence et vos questionnaires. Le lien ci-dessous vous
+            est propre et reste valable : gardez-le, ne le transmettez pas.</p>";
+
         $message = $this->twig->render('emails/simple_message.html.twig', [
             'sujet' => $sujet,
-            'message' => 'Bonjour,' . $texte . '<p>Pour toute question, répondez simplement à cet email.</p>',
-        ]);
+            'message' => 'Bonjour,' . $texte . $espace . '<p>Pour toute question, répondez simplement à cet email.</p>',
+        ] + ($lienEspace === null ? [] : ['boutonText' => 'Ouvrir mon espace', 'boutonUrl' => $lienEspace]));
 
         $this->sendBrevoMail($sujet, $destinataire, $message, [['name' => $nomFichier, 'content' => $contenu]]);
     }

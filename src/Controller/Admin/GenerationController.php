@@ -2,6 +2,7 @@
 
 namespace App\Controller\Admin;
 
+use App\Controller\EspaceParticipantController;
 use App\Entity\Client;
 use App\Entity\Document;
 use App\Entity\SessionFormation;
@@ -12,12 +13,14 @@ use App\Repository\EvaluationRepository;
 use App\Repository\OrganismeRepository;
 use App\Service\Documents;
 use App\Service\DocumentsGeneres;
+use App\Service\Jetons;
 use App\Service\MailService;
 use DomainException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Throwable;
 
@@ -162,6 +165,7 @@ class GenerationController extends AbstractController
         DocumentRepository $depot,
         Documents          $documents,
         MailService        $mails,
+        Jetons             $jetons,
     ): Response
     {
         if (!$this->isCsrfTokenValid('submit', $request->request->getString('_csrf_token'))) {
@@ -211,6 +215,11 @@ class GenerationController extends AbstractController
                     $modele,
                     $document->getNom() . '.pdf',
                     (string)file_get_contents($documents->chemin($document)),
+                    // La convocation est le premier contact : elle donne au participant l'adresse de son espace.
+                    $modele !== 'convocations' || $participant->isArchive() ? null : $this->generateUrl('app_espace_participant', [
+                        'id' => $participant->getId(),
+                        'jeton' => $jetons->pour(EspaceParticipantController::sujet($participant)),
+                    ], UrlGeneratorInterface::ABSOLUTE_URL),
                 );
                 $documents->noterEnvoi($document, $participant->getEmail(), $auteur);
                 $envoyes++;
