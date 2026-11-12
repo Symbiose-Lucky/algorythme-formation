@@ -35,7 +35,10 @@ class FormationRepository extends ServiceEntityRepository
      */
     public function rechercher(?StatutFormation $statut, string $recherche = ''): array
     {
-        $requete = $this->createQueryBuilder('f')->orderBy('f.nom', 'ASC');
+        $requete = $this->createQueryBuilder('f')
+            ->leftJoin('f.domaine', 'd')
+            ->addSelect('d')
+            ->orderBy('f.nom', 'ASC');
 
         if ($statut !== null) {
             $requete->andWhere('f.statut = :statut')->setParameter('statut', $statut);
@@ -45,7 +48,7 @@ class FormationRepository extends ServiceEntityRepository
 
         if ($recherche !== '') {
             $requete
-                ->andWhere('f.nom LIKE :recherche OR f.code LIKE :recherche OR f.domaine LIKE :recherche')
+                ->andWhere('f.nom LIKE :recherche OR f.code LIKE :recherche OR d.nom LIKE :recherche')
                 ->setParameter('recherche', '%' . addcslashes($recherche, '%_\\') . '%');
         }
 
@@ -77,21 +80,5 @@ class FormationRepository extends ServiceEntityRepository
         }
 
         return $nombres;
-    }
-
-    /**
-     * Les domaines déjà saisis, proposés à la saisie pour éviter les
-     * variantes d'orthographe.
-     *
-     * @return list<string>
-     */
-    public function domaines(): array
-    {
-        return $this->createQueryBuilder('f')
-            ->select('DISTINCT f.domaine')
-            ->where("f.domaine != ''")
-            ->orderBy('f.domaine', 'ASC')
-            ->getQuery()
-            ->getSingleColumnResult();
     }
 }

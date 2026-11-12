@@ -2,8 +2,10 @@
 
 namespace App\Controller;
 
+use App\Entity\Domaine;
 use App\Entity\Formation;
 use App\Enum\StatutFormation;
+use App\Repository\DomaineRepository;
 use App\Repository\FormationRepository;
 use App\Service\CodesFormation;
 use App\Service\HistoriqueFormations;
@@ -43,6 +45,7 @@ class ApiFormationController extends AbstractController
 
     public function __construct(
         private readonly FormationRepository  $formations,
+        private readonly DomaineRepository    $domaines,
         private readonly HistoriqueFormations $historique,
         private readonly CodesFormation       $codes,
         private readonly ValidatorInterface   $validateur,
@@ -65,12 +68,15 @@ class ApiFormationController extends AbstractController
                 'code' => $formation->getCode(),
                 'nom' => $formation->getNom(),
                 'statut' => $formation->getStatut()->value,
-                'domaine' => $formation->getDomaine(),
+                'domaine' => $formation->getNomDomaine(),
                 'dureeHeures' => $formation->getDureeHeures(),
                 'version' => $formation->getVersion(),
             ],
             $this->formations->findBy([], ['nom' => 'ASC']),
-        )]);
+        ),
+            // Les domaines qu'une formation peut prendre (liste gérée dans l'admin).
+            'domaines' => array_map(static fn(Domaine $domaine) => $domaine->getNom(), $this->domaines->parNom()),
+        ]);
     }
 
     #[Route('/{code}', name: '_voir', methods: ['GET'])]
@@ -146,8 +152,23 @@ class ApiFormationController extends AbstractController
             }
         }
 
+        // Le domaine se donne par son nom, et doit exister dans la liste de l'admin.
+        if (array_key_exists('domaine', $donnees)) {
+            $nom = is_scalar($donnees['domaine']) ? trim((string)$donnees['domaine']) : '';
+            $domaine = $this->domaines->parNomSouple($nom);
+
+            if ($nom !== '' && $domaine === null) {
+                return $this->reponse([
+                    'erreur' => sprintf("Domaine inconnu : « %s ». Choisissez-en un de la liste, ou créez-le d'abord dans l'admin.", $nom),
+                    'domaines' => array_map(static fn(Domaine $d) => $d->getNom(), $this->domaines->parNom()),
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
+
+            $formation->setDomaine($domaine);
+        }
+
         foreach (self::TEXTES as $champ) {
-            if (array_key_exists($champ, $donnees)) {
+            if ($champ !== 'domaine' && array_key_exists($champ, $donnees)) {
                 $formation->{'set' . ucfirst($champ)}(is_scalar($donnees[$champ]) ? (string)$donnees[$champ] : '');
             }
         }

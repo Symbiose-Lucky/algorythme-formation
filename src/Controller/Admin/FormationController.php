@@ -65,7 +65,6 @@ class FormationController extends AbstractController
         return $this->render('admin/formation/form.html.twig', [
             'formation' => $formation,
             'form' => $form,
-            'domaines' => $this->formations->domaines(),
         ]);
     }
 
@@ -98,7 +97,6 @@ class FormationController extends AbstractController
         return $this->render('admin/formation/form.html.twig', [
             'formation' => $formation,
             'form' => $form,
-            'domaines' => $this->formations->domaines(),
         ]);
     }
 

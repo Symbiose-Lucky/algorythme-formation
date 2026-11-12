@@ -2,10 +2,13 @@
 
 namespace App\Form;
 
+use App\Entity\Domaine;
 use App\Entity\Formation;
 use App\Enum\StatutFormation;
+use App\Repository\DomaineRepository;
 use App\Repository\FormationRepository;
 use App\Service\CodesFormation;
+use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\EnumType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
@@ -17,6 +20,7 @@ use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\String\Slugger\SluggerInterface;
 use Symfony\Component\Validator\Constraints\Length;
 
@@ -30,6 +34,7 @@ class FormationType extends AbstractType
         private readonly SluggerInterface $slugger,
         private readonly CodesFormation      $codes,
         private readonly FormationRepository $formations,
+        private readonly UrlGeneratorInterface $urls,
     )
     {
     }
@@ -73,10 +78,20 @@ class FormationType extends AbstractType
                 'choices' => $statuts,
                 'choice_label' => static fn(StatutFormation $statut) => $statut->libelle(),
             ])
-            ->add('domaine', TextType::class, [
+            ->add('domaine', EntityType::class, [
                 'label' => 'Domaine',
+                'class' => Domaine::class,
                 'required' => false,
-                'attr' => ['list' => 'domaines', 'autocomplete' => 'off'],
+                'placeholder' => 'Aucun domaine',
+                'query_builder' => static fn(DomaineRepository $domaines) => $domaines->createQueryBuilder('d')->orderBy('d.nom', 'ASC'),
+                // Liste déroulante sans JavaScript ; avec, une zone de saisie
+                // qui filtre les domaines à la frappe (autocomplete_controller).
+                'attr' => [
+                    'data-controller' => 'autocomplete',
+                    'data-autocomplete-vide-value' => 'Aucun domaine ne correspond.',
+                ],
+                'help' => sprintf('La liste se gère dans <a href="%s">Domaines</a>.', $this->urls->generate('app_admin_domaine')),
+                'help_html' => true,
             ])
             ->add('accroche', TextareaType::class, [
                 'label' => 'Accroche',

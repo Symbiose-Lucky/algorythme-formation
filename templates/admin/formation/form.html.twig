@@ -38,11 +38,6 @@
             {{ form_row(form.domaine) }}
             <div class="adm-grille__large">{{ form_row(form.accroche) }}</div>
         </div>
-        <datalist id="domaines">
-            {% for domaine in domaines %}
-                <option value="{{ domaine }}"></option>
-            {% endfor %}
-        </datalist>
     </section>
 
     <section class="adm-carte">

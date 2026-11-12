@@ -1,0 +1,87 @@
+{% extends 'admin/base.html.twig' %}
+
+{% form_theme form with 'admin/_form_theme.html.twig' only %}
+
+{% block title %}Domaines{% endblock %}
+
+{% block titre_page %}Domaines{% endblock %}
+
+{% block sous_titre %}
+    <p class="adm-entete__sous-titre">Les domaines du catalogue, proposés dans la fiche d'une formation.</p>
+{% endblock %}
+
+{% block contenu %}
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete">
+            <h2>Liste des domaines</h2>
+            <span class="adm-carte__compte">{{ lignes|length }}</span>
+        </header>
+
+        {# Ajout rapide : un nom, un bouton. #}
+        {{ form_start(form, { attr: { class: 'adm-ajout adm-ajout--domaine', novalidate: 'novalidate' } }) }}
+            {{ form_label(form.nom, null, { label_attr: { class: 'adm-sr' } }) }}
+            {{ form_widget(form.nom, { attr: { placeholder: 'Nouveau domaine…', 'aria-invalid': form.nom.vars.valid ? 'false' : 'true' } }) }}
+            <button type="submit" class="adm-bouton adm-bouton--principal">Ajouter</button>
+            {% for erreur in form.nom.vars.errors %}
+                <p class="adm-champ__erreur adm-ajout__erreur" role="alert">{{ erreur.message }}</p>
+            {% endfor %}
+        {{ form_end(form) }}
+
+        {% if lignes is empty %}
+            <p class="adm-vide">Aucun domaine pour l'instant.</p>
+        {% else %}
+            <div class="adm-table-zone">
+                <table class="adm-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Domaine</th>
+                            <th scope="col" class="adm-table__nombre">Formations</th>
+                            <th scope="col"><span class="adm-sr">Actions</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ligne in lignes %}
+                            {% set domaine = ligne.domaine %}
+                            <tr>
+                                <td class="adm-table__titre">{{ domaine.nom }}</td>
+                                <td class="adm-table__nombre">
+                                    {% if ligne.formations > 0 %}
+                                        <a href="{{ path('app_admin_formation', { q: domaine.nom }) }}"
+                                           title="Voir les formations de ce domaine">{{ ligne.formations }}</a>
+                                    {% else %}
+                                        0
+                                    {% endif %}
+                                </td>
+                                <td class="adm-table__action">
+                                    <div class="adm-table__actions">
+                                        <a href="{{ path('app_admin_domaine_modifier', { id: domaine.id }) }}"
+                                           class="adm-bouton adm-bouton--discret">
+                                            Renommer<span class="adm-sr"> {{ domaine.nom }}</span>
+                                        </a>
+                                        {% if ligne.formations == 0 %}
+                                            <form method="post"
+                                                  action="{{ path('app_admin_domaine_supprimer', { id: domaine.id }) }}">
+                                                <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}"
+                                                       data-controller="csrf-protection">
+                                                <button type="submit" class="adm-bouton adm-bouton--discret">
+                                                    Supprimer<span class="adm-sr"> {{ domaine.nom }}</span>
+                                                </button>
+                                            </form>
+                                        {% else %}
+                                            <button type="button" class="adm-bouton adm-bouton--discret" disabled
+                                                    title="Utilisé par {{ ligne.formations }} formation{{ ligne.formations > 1 ? 's' }} : changez-le d'abord sur {{ ligne.formations > 1 ? 'chacune' : 'elle' }}.">
+                                                Supprimer<span class="adm-sr"> {{ domaine.nom }} (impossible : domaine utilisé)</span>
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </section>
+
+{% endblock %}

@@ -6,7 +6,7 @@
 {% block form_row -%}
     {%- set widget_attr = {} -%}
     {%- if help is not empty -%}
-        {%- set widget_attr = {attr: {'aria-describedby': id ~ '_help'}} -%}
+        {%- set widget_attr = {attr: attr|merge({'aria-describedby': id ~ '_help'})} -%}
     {%- endif -%}
     <div class="adm-champ{{ errors|length ? ' adm-champ--erreur' }}">
         {{- form_label(form) -}}
@@ -53,6 +53,6 @@
 
 {% block form_help -%}
     {%- if help is not empty -%}
-        <p id="{{ id }}_help" class="adm-champ__aide">{{ help }}</p>
+        <p id="{{ id }}_help" class="adm-champ__aide">{{ help_html ? help|raw : help }}</p>
     {%- endif -%}
 {%- endblock form_help %}

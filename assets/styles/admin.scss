@@ -1314,6 +1314,91 @@ body.adm {
 }
 
 // ---------------------------------------------------------------------
+// 6 ter bis. Liste avec recherche (autocomplete_controller) et domaines
+// ---------------------------------------------------------------------
+
+// La zone de saisie reprend le style des champs (.adm-champ input) ;
+// la liste des options s'ouvre dessous, par-dessus le reste.
+.adm-autocomplete {
+    position: relative;
+
+    &__liste {
+        position: absolute;
+        z-index: 20;
+        top: calc(100% + 4px);
+        right: 0;
+        left: 0;
+        max-height: 260px;
+        margin: 0;
+        padding: 4px;
+        overflow-y: auto;
+        list-style: none;
+        border: 1px solid var(--adm-bord-fort);
+        border-radius: 6px;
+        background: var(--adm-surface);
+        box-shadow: 0 8px 24px rgba(16, 24, 40, 0.12);
+
+        li {
+            padding: 7px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        [role="option"] {
+            cursor: pointer;
+
+            &:hover {
+                background: var(--adm-surface-alt);
+            }
+
+            &[aria-selected="true"] {
+                font-weight: 600;
+            }
+        }
+
+        mark {
+            padding: 0;
+            background: none;
+            color: inherit;
+            font-weight: 600;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+    }
+
+    &__option--active,
+    &__option--active:hover {
+        background: var(--adm-accent-doux) !important;
+        color: var(--adm-accent-survol);
+    }
+
+    &__vide {
+        color: var(--adm-muet);
+    }
+}
+
+// Ajout d'un domaine : le message d'erreur passe sous le champ.
+.adm-ajout__erreur {
+    flex-basis: 100%;
+    margin: 0;
+}
+
+.adm-ajout input[aria-invalid="true"] {
+    border-color: var(--adm-erreur);
+}
+
+// Plusieurs boutons dans la dernière colonne d'un tableau.
+.adm-table__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+
+    form {
+        margin: 0;
+    }
+}
+
+// ---------------------------------------------------------------------
 // 6 quater. Documents et zones de signature
 // ---------------------------------------------------------------------
 

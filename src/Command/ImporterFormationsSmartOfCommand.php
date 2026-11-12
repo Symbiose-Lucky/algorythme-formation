@@ -2,8 +2,10 @@
 
 namespace App\Command;
 
+use App\Entity\Domaine;
 use App\Entity\Formation;
 use App\Enum\StatutFormation;
+use App\Repository\DomaineRepository;
 use App\Repository\FormationRepository;
 use App\Service\HistoriqueFormations;
 use App\Service\SmartOfApiService;
@@ -45,6 +47,7 @@ class ImporterFormationsSmartOfCommand extends Command
         private readonly HistoriqueFormations $historique,
         private readonly SluggerInterface     $slugger,
         private readonly EntityManagerInterface $em,
+        private readonly DomaineRepository    $domaines,
     )
     {
         parent::__construct();
@@ -86,6 +89,11 @@ class ImporterFormationsSmartOfCommand extends Command
             }
 
             if (!$simuler) {
+                // Un domaine de SmartOF absent de la liste y est ajouté.
+                if ($formation->getDomaine() !== null && $formation->getDomaine()->getId() === null) {
+                    $this->em->persist($formation->getDomaine());
+                }
+
                 $this->historique->enregistrer($formation, null, self::MOTIF);
 
                 // La version 1 est datée de l'import ; la formation, elle,
@@ -108,6 +116,22 @@ class ImporterFormationsSmartOfCommand extends Command
         ));
 
         return Command::SUCCESS;
+    }
+
+    /** @var array<string, Domaine> Les domaines créés pendant cet import, par nom en minuscules. */
+    private array $nouveauxDomaines = [];
+
+    /** Le domaine de ce nom dans la liste de l'admin ; créé s'il n'y est pas encore. */
+    private function domaine(string $nom): ?Domaine
+    {
+        $nom = trim(preg_replace('/\s+/u', ' ', $nom));
+
+        if ($nom === '') {
+            return null;
+        }
+
+        return $this->domaines->parNomSouple($nom)
+            ?? ($this->nouveauxDomaines[mb_strtolower($nom)] ??= new Domaine($nom));
     }
 
     /**
@@ -142,7 +166,7 @@ class ImporterFormationsSmartOfCommand extends Command
                 $actif => StatutFormation::Publiee,
                 default => StatutFormation::Brouillon,
             })
-            ->setDomaine($champs['custom_field_4'] ?? '')
+            ->setDomaine($this->domaine((string)($champs['custom_field_4'] ?? '')))
             ->setAccroche($champs['custom_field_2'] ?? '')
             ->setDureeHeures($heures > 0 ? $heures : null)
             ->setLieu($description['lieuDeLaFormation'] ?? '')

@@ -18,7 +18,8 @@ perdu, tout se retrouve dans l'historique de la fiche.
 
 `node .claude/skills/creer-formation/formations.mjs [--prod] <action>` :
 
-- `liste` : toutes les formations (code, nom, statut, domaine, durée).
+- `liste` : toutes les formations (code, nom, statut, domaine, durée), et `domaines` : les
+  domaines qu'une formation peut prendre.
 - `voir <CODE>` : une fiche complète.
 - `enregistrer <fiche.json> [--simuler]` : crée la formation si le fichier n'a pas de code (ou
   un code inconnu), sinon la modifie. Seuls les champs présents dans le fichier sont touchés. Avec `--simuler`, rien n'est
@@ -73,8 +74,11 @@ en local n'existe pas en production.
   donner le code de la formation : c'est lui qui la désigne.
 - `nom` : titre public. Il donne l'adresse de la page à la création. L'API refuse de renommer une
   formation publiée (409) : cela se fait dans l'admin, en connaissance de cause.
-- `domaine` : **reprendre une valeur existante à l'identique** (voir `liste`), par ex.
-  `Intelligence Artificielle`, `Développement informatique`, `Big data et analytics`.
+- `domaine` : **un des domaines de la liste** (`domaines` dans la réponse de `liste`), par ex.
+  `Intelligence Artificielle`, `Développement informatique`, `Big data et analytics` ; la casse
+  ne compte pas. Un domaine inconnu est refusé (422, avec la liste) : la liste se gère dans
+  l'admin (/admin/domaines), proposer à l'utilisateur d'y créer le domaine plutôt que d'en
+  choisir un qui ne convient pas. `""` retire le domaine.
 - `dureeHeures` : en heures, 7 h par jour.
 - `tarifInterEuros`, `tarifIntraEuros` : en euros hors taxes, `null` si inconnu. À demander à
   l'utilisateur s'il ne les a pas donnés.

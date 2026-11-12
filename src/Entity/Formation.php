@@ -108,9 +108,10 @@ class Formation
     #[ORM\Column(length: 20, enumType: StatutFormation::class)]
     private StatutFormation $statut = StatutFormation::Brouillon;
 
-    #[ORM\Column(length: 120)]
-    #[Assert\Length(max: 120)]
-    private string $domaine = '';
+    /** Choisi dans la liste gérée dans l'admin. Un domaine utilisé ne se supprime pas. */
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'RESTRICT')]
+    private ?Domaine $domaine = null;
 
     #[ORM\Column(type: Types::TEXT)]
     private string $accroche = '';
@@ -208,7 +209,13 @@ class Formation
 
         foreach (array_keys(self::CHAMPS) as $champ) {
             $valeur = $this->$champ;
-            $instantane[$champ] = $valeur instanceof StatutFormation ? $valeur->value : $valeur;
+            // Le domaine est gardé en texte : une version montre le nom
+            // qu'il portait alors, même renommé ou supprimé depuis.
+            $instantane[$champ] = match (true) {
+                $valeur instanceof StatutFormation => $valeur->value,
+                $champ === 'domaine' => $this->getNomDomaine(),
+                default => $valeur,
+            };
         }
 
         return $instantane;
@@ -321,14 +328,20 @@ class Formation
         return $this;
     }
 
-    public function getDomaine(): string
+    public function getDomaine(): ?Domaine
     {
         return $this->domaine;
     }
 
-    public function setDomaine(?string $domaine): static
+    /** Le nom du domaine, ou une chaîne vide s'il n'y en a pas. */
+    public function getNomDomaine(): string
     {
-        $this->domaine = trim((string)$domaine);
+        return $this->domaine?->getNom() ?? '';
+    }
+
+    public function setDomaine(?Domaine $domaine): static
+    {
+        $this->domaine = $domaine;
 
         return $this;
     }

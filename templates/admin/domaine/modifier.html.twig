@@ -1,0 +1,38 @@
+{% extends 'admin/base.html.twig' %}
+
+{% form_theme form with 'admin/_form_theme.html.twig' only %}
+
+{% block title %}Renommer un domaine{% endblock %}
+
+{% block titre_page %}Renommer un domaine{% endblock %}
+
+{% block sous_titre %}
+    <p class="adm-entete__sous-titre">{{ ancien }}</p>
+{% endblock %}
+
+{% block contenu %}
+
+    {{ form_start(form, { attr: { class: 'adm-fiche', novalidate: 'novalidate' } }) }}
+
+    <section class="adm-carte">
+        <div class="adm-carte__corps">
+            {{ form_row(form.nom, {
+                help: formations == 0
+                    ? 'Aucune formation ne porte ce domaine.'
+                    : (formations == 1
+                        ? 'Sa formation prendra le nouveau nom ; son historique en gardera la trace.'
+                        : 'Ses ' ~ formations ~ ' formations prendront le nouveau nom ; leur historique en gardera la trace.')
+            }) }}
+        </div>
+    </section>
+
+    <div class="adm-fiche__actions">
+        <div class="adm-fiche__boutons">
+            <a href="{{ path('app_admin_domaine') }}" class="adm-bouton adm-bouton--discret">Annuler</a>
+            <button type="submit" class="adm-bouton adm-bouton--principal">Enregistrer</button>
+        </div>
+    </div>
+
+    {{ form_end(form) }}
+
+{% endblock %}

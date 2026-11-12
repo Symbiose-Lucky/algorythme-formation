@@ -164,7 +164,7 @@ class CatalogueFormations
      */
     private function resume(Formation $formation): array
     {
-        $domaine = $formation->getDomaine();
+        $domaine = $formation->getNomDomaine();
         $tarifs = $this->tarifs($formation);
         $indicateurs = $this->indicateurs->publics($formation);
 
