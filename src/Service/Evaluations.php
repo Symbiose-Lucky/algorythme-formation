@@ -27,8 +27,8 @@ use DomainException;
  * - Évaluation des acquis : le formateur dit, objectif par objectif, ce
  *   que chaque participant a acquis. C'est elle que reprend l'attestation
  *   de fin de formation.
- * - Satisfaction du client et bilan du formateur : l'appréciation des
- *   autres parties prenantes de la session, en fin de formation.
+ * - Satisfaction du client et du financeur, bilan du formateur :
+ *   l'appréciation des autres parties prenantes, en fin de formation.
  *
  * Les objectifs sont ceux de la version du programme que la session dispense.
  */
@@ -150,6 +150,15 @@ class Evaluations
                 $ajouter('besoins', "Avez-vous d'autres besoins de formation ?", 'texte', 'Vos remarques');
                 break;
 
+            case TypeEvaluation::Financeur:
+                $avis = 'Votre avis';
+                $ajouter('information', "L'information reçue avant la formation : programme, devis, convention", 'note', $avis, self::NOTES);
+                $ajouter('administratif', 'Le suivi administratif : délais, réponses à vos demandes', 'note', $avis, self::NOTES);
+                $ajouter('justificatifs', 'Les justificatifs transmis : émargements, certificats de réalisation, facture', 'note', $avis, self::NOTES);
+                $ajouter('global', 'Votre satisfaction globale', 'note', $avis, self::NOTES);
+                $ajouter('remarques', 'Vos remarques, ce que nous pourrions améliorer', 'texte', 'Vos remarques');
+                break;
+
             case TypeEvaluation::Formateur:
                 $bilan = 'Votre bilan';
                 $ajouter('preparation', 'La préparation : informations reçues sur le groupe, ses attentes et son contexte', 'note', $bilan, self::NOTES);
@@ -174,7 +183,7 @@ class Evaluations
      * Où en est la fenêtre d'un questionnaire : « ouvert », « pas_encore » ou « clos ».
      *
      * - Positionnement : jusqu'au début de la dernière séance.
-     * - Acquis, satisfaction à chaud, avis du client et bilan du formateur : à partir du début de la dernière séance.
+     * - Acquis, satisfaction à chaud, avis du client et du financeur, bilan du formateur : à partir du début de la dernière séance.
      * - Satisfaction à froid : DELAI_FROID jours après le dernier jour.
      */
     public function etat(TypeEvaluation $type, SessionFormation $session): string
@@ -202,7 +211,7 @@ class Evaluations
 
         return match ($type) {
             TypeEvaluation::Positionnement => null,
-            TypeEvaluation::Acquis, TypeEvaluation::Chaud, TypeEvaluation::Client, TypeEvaluation::Formateur => $derniere,
+            TypeEvaluation::Acquis, TypeEvaluation::Chaud, TypeEvaluation::Client, TypeEvaluation::Financeur, TypeEvaluation::Formateur => $derniere,
             TypeEvaluation::Froid => $derniere?->setTime(0, 0)->modify('+' . self::DELAI_FROID . ' days'),
         };
     }
@@ -269,8 +278,9 @@ class Evaluations
     }
 
     /**
-     * Un client donne son avis sur la session, ou un formateur son bilan,
-     * depuis son lien personnel. L'un des deux, jamais les deux.
+     * Un client ou le financeur donne son avis sur la session, ou un
+     * formateur son bilan, depuis son lien personnel. Le type dit lequel :
+     * Client et Financeur attendent un client, Formateur un formateur.
      *
      * @param array<string, mixed> $brut Les réponses reçues, par clé de question.
      *
@@ -278,6 +288,7 @@ class Evaluations
      */
     public function repondreTiers(
         SessionFormation $session,
+        TypeEvaluation   $type,
         ?Client          $client,
         ?Formateur       $formateur,
         array            $brut,
@@ -285,24 +296,23 @@ class Evaluations
         ?string          $navigateur,
     ): Evaluation
     {
-        if (($client === null) === ($formateur === null)) {
-            throw new \LogicException("L'avis vient d'un client ou d'un formateur.");
+        if (($type === TypeEvaluation::Formateur ? $formateur : $client) === null
+            || !in_array($type, [TypeEvaluation::Client, TypeEvaluation::Financeur, TypeEvaluation::Formateur], true)) {
+            throw new \LogicException("L'avis vient d'un client, du financeur ou d'un formateur.");
         }
-
-        $type = $client !== null ? TypeEvaluation::Client : TypeEvaluation::Formateur;
 
         if ($this->etat($type, $session) !== 'ouvert') {
             throw new DomainException("Ce questionnaire n'est pas ouvert.");
         }
 
-        if ($this->duTiers($session, $client, $formateur) !== null) {
+        if ($this->duTiers($session, $type, $client, $formateur) !== null) {
             throw new DomainException('Vous avez déjà répondu à ce questionnaire. Merci.');
         }
 
         $reponses = $this->lire($this->questions($type, $session), $brut);
 
-        $evaluation = new Evaluation($session, $type, $reponses, null, $client);
-        $evaluation->attribuer($formateur, null, $ip, $navigateur);
+        $evaluation = new Evaluation($session, $type, $reponses, null, $type === TypeEvaluation::Formateur ? null : $client);
+        $evaluation->attribuer($type === TypeEvaluation::Formateur ? $formateur : null, null, $ip, $navigateur);
 
         $this->em->persist($evaluation);
         $this->em->flush();
@@ -310,14 +320,12 @@ class Evaluations
         return $evaluation;
     }
 
-    /** L'avis déjà donné par ce client, ou le bilan déjà donné par ce formateur, sur la session. */
-    public function duTiers(SessionFormation $session, ?Client $client, ?Formateur $formateur): ?Evaluation
+    /** L'avis déjà donné sur la session par ce client ou ce financeur, ou le bilan déjà donné par ce formateur. */
+    public function duTiers(SessionFormation $session, TypeEvaluation $type, ?Client $client, ?Formateur $formateur): ?Evaluation
     {
-        $tiers = $this->evaluations->tiersDeLaSession($session);
+        $id = $type === TypeEvaluation::Formateur ? $formateur?->getId() : $client?->getId();
 
-        return $client !== null
-            ? ($tiers['client'][$client->getId()] ?? null)
-            : ($tiers['formateur'][$formateur?->getId()] ?? null);
+        return $this->evaluations->tiersDeLaSession($session)[$type->value][$id] ?? null;
     }
 
     /**

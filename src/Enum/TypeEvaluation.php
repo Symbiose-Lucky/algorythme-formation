@@ -8,7 +8,8 @@ namespace App\Enum;
  * Quatre types portent sur un participant : trois questionnaires qu'il
  * remplit lui-même, et l'évaluation des acquis, remplie par le formateur.
  * Deux autres recueillent l'appréciation des autres parties prenantes :
- * le client (l'entreprise qui a commandé la formation) et le formateur.
+ * le client (l'entreprise qui a commandé la formation), le financeur
+ * (OPCO, France Travail…) et le formateur.
  */
 enum TypeEvaluation: string
 {
@@ -17,6 +18,7 @@ enum TypeEvaluation: string
     case Chaud = 'chaud';
     case Froid = 'froid';
     case Client = 'client';
+    case Financeur = 'financeur';
     case Formateur = 'formateur';
 
     public function libelle(): string
@@ -27,6 +29,7 @@ enum TypeEvaluation: string
             self::Chaud => 'Satisfaction à chaud',
             self::Froid => 'Satisfaction à froid',
             self::Client => 'Satisfaction du client',
+            self::Financeur => 'Satisfaction du financeur',
             self::Formateur => 'Bilan du formateur',
         };
     }
@@ -40,6 +43,7 @@ enum TypeEvaluation: string
             self::Chaud => 'Votre avis sur la formation',
             self::Froid => 'Quelques semaines après : votre bilan',
             self::Client => 'Votre avis sur la formation de vos collaborateurs',
+            self::Financeur => 'Votre avis sur la formation que vous avez financée',
             self::Formateur => 'Votre bilan de la session',
         };
     }

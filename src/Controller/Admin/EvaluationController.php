@@ -68,6 +68,11 @@ class EvaluationController extends AbstractController
             'attendus' => count($this->evaluations->clients($session)),
         ];
         $comptes[] = [
+            'type' => TypeEvaluation::Financeur,
+            'nombre' => count($tiers['financeur']),
+            'attendus' => $this->financeur($session) === null ? 0 : 1,
+        ];
+        $comptes[] = [
             'type' => TypeEvaluation::Formateur,
             'nombre' => count($tiers['formateur']),
             'attendus' => $session->getFormateurs()->count(),
@@ -132,6 +137,16 @@ class EvaluationController extends AbstractController
             ];
         }
 
+        if (($financeur = $this->financeur($session)) !== null) {
+            $tiers[] = [
+                'nom' => $financeur->getNom(),
+                'role' => 'Financeur' . ($financeur->getContactNom() !== '' ? ' · ' . $financeur->getContactNom() : ''),
+                'type' => TypeEvaluation::Financeur,
+                'lien' => $this->lienClient($session, $financeur),
+                'evaluation' => $avis['financeur'][$financeur->getId()] ?? null,
+            ];
+        }
+
         foreach ($session->getFormateurs() as $formateur) {
             $tiers[] = [
                 'nom' => $formateur->libelle(),
@@ -142,7 +157,7 @@ class EvaluationController extends AbstractController
             ];
         }
 
-        foreach ([TypeEvaluation::Client, TypeEvaluation::Formateur] as $type) {
+        foreach ([TypeEvaluation::Client, TypeEvaluation::Financeur, TypeEvaluation::Formateur] as $type) {
             $attendus = count(array_filter($tiers, static fn(array $ligne) => $ligne['type'] === $type));
 
             if ($attendus === 0) {
@@ -272,6 +287,16 @@ class EvaluationController extends AbstractController
                     ];
                 }
             }
+        } elseif ($type === TypeEvaluation::Financeur) {
+            $financeur = $this->financeur($session);
+
+            if ($financeur !== null && !isset($avis['financeur'][$financeur->getId()])) {
+                $destinataires[] = [
+                    'nom' => $financeur->getNom(),
+                    'email' => $financeur->getContactEmail(),
+                    'lien' => $this->lienClient($session, $financeur),
+                ];
+            }
         } elseif ($type === TypeEvaluation::Client) {
             foreach ($this->evaluations->clients($session) as $client) {
                 if (!isset($avis['client'][$client->getId()])) {
@@ -343,6 +368,17 @@ class EvaluationController extends AbstractController
             'id' => $inscription->getId(),
             'jeton' => $this->jetons->pour(LiensEmargement::sujetParticipant($inscription)),
         ], UrlGeneratorInterface::ABSOLUTE_URL);
+    }
+
+    /**
+     * Le financeur à interroger : celui de la session, sauf s'il en est
+     * aussi un client (il répond alors au questionnaire du client).
+     */
+    private function financeur(SessionFormation $session): ?Client
+    {
+        $financeur = $session->getFinanceur();
+
+        return $financeur === null || in_array($financeur, $this->evaluations->clients($session), true) ? null : $financeur;
     }
 
     private function lienClient(SessionFormation $session, Client $client): string

@@ -39,6 +39,7 @@ class SessionFormation
         'modalite' => 'Modalité',
         'statut' => 'Statut',
         'client' => 'Client',
+        'financeur' => 'Financeur',
         'formateurs' => 'Formateurs',
         'lieu' => 'Lieu',
         'effectifMax' => 'Effectif maximum',
@@ -77,6 +78,11 @@ class SessionFormation
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(onDelete: 'SET NULL')]
     private ?Client $client = null;
+
+    /** L'organisme qui finance la session (OPCO, France Travail…), s'il y en a un. C'est une fiche client de type « financeur ». */
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(onDelete: 'SET NULL')]
+    private ?Client $financeur = null;
 
     /**
      * @var Collection<int, Formateur>
@@ -156,6 +162,7 @@ class SessionFormation
             'modalite' => $this->modalite->libelle(),
             'statut' => $this->statut->libelle(),
             'client' => $this->client?->getNom() ?? '',
+            'financeur' => $this->financeur?->getNom() ?? '',
             'formateurs' => self::liste(array_map(static fn(Formateur $f) => $f->libelle(), $this->formateurs->toArray())),
             'lieu' => $this->lieu,
             'effectifMax' => $this->effectifMax,
@@ -373,6 +380,18 @@ class SessionFormation
     public function setClient(?Client $client): static
     {
         $this->client = $client;
+
+        return $this;
+    }
+
+    public function getFinanceur(): ?Client
+    {
+        return $this->financeur;
+    }
+
+    public function setFinanceur(?Client $financeur): static
+    {
+        $this->financeur = $financeur;
 
         return $this;
     }

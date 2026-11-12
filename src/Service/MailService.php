@@ -285,6 +285,14 @@ class MailService
                     merci de prendre deux minutes pour répondre à ce questionnaire.</p>",
                 'Donner mon avis',
             ],
+            TypeEvaluation::Financeur => [
+                'Votre avis sur la formation - ' . $session->getFormation()->getNom(),
+                "<p>Vous avez financé la formation <strong>" . $formation . "</strong> (session "
+                    . $session->getReference() . "), qui vient de se terminer. Votre avis sur nos échanges et
+                    sur les justificatifs transmis nous aide à nous améliorer : merci de prendre deux minutes
+                    pour répondre à ce questionnaire.</p>",
+                'Donner mon avis',
+            ],
             TypeEvaluation::Formateur => [
                 'Votre bilan de la session - ' . $session->getFormation()->getNom(),
                 "<p>Vous venez d'animer la formation <strong>" . $formation . "</strong> (session "

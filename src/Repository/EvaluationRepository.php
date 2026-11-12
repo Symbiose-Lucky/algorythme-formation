@@ -38,18 +38,19 @@ class EvaluationRepository extends ServiceEntityRepository
     }
 
     /**
-     * Les avis des clients et les bilans des formateurs d'une session :
-     * ['client'][idClient] => Evaluation, ['formateur'][idFormateur] => Evaluation.
+     * Les avis des clients et du financeur, et les bilans des formateurs
+     * d'une session : ['client'][idClient] => Evaluation,
+     * ['financeur'][idClient] => Evaluation, ['formateur'][idFormateur] => Evaluation.
      *
-     * @return array{client: array<int, Evaluation>, formateur: array<int, Evaluation>}
+     * @return array{client: array<int, Evaluation>, financeur: array<int, Evaluation>, formateur: array<int, Evaluation>}
      */
     public function tiersDeLaSession(SessionFormation $session): array
     {
-        $tableau = ['client' => [], 'formateur' => []];
+        $tableau = ['client' => [], 'financeur' => [], 'formateur' => []];
 
         foreach ($this->findBy(['session' => $session, 'inscription' => null]) as $evaluation) {
-            if ($evaluation->getType() === TypeEvaluation::Client && $evaluation->getClient() !== null) {
-                $tableau['client'][$evaluation->getClient()->getId()] = $evaluation;
+            if (in_array($evaluation->getType(), [TypeEvaluation::Client, TypeEvaluation::Financeur], true) && $evaluation->getClient() !== null) {
+                $tableau[$evaluation->getType()->value][$evaluation->getClient()->getId()] = $evaluation;
             } elseif ($evaluation->getType() === TypeEvaluation::Formateur && $evaluation->getFormateur() !== null) {
                 $tableau['formateur'][$evaluation->getFormateur()->getId()] = $evaluation;
             }

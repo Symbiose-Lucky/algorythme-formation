@@ -104,17 +104,22 @@ class EvaluationController extends AbstractController
         $session = $this->em->find(SessionFormation::class, $session);
         $client = $this->em->find(Client::class, $client);
 
-        if ($session === null || $client === null
-            || !in_array($client, $this->evaluations->clients($session), true)
-            || !$this->jetons->valide(self::sujetClient($session, $client), $jeton)) {
+        if ($session === null || $client === null || !$this->jetons->valide(self::sujetClient($session, $client), $jeton)) {
             throw $this->createNotFoundException('Lien invalide.');
         }
+
+        // Le même lien sert au client et au financeur : c'est leur place dans la session qui dit lequel répond.
+        $type = match (true) {
+            in_array($client, $this->evaluations->clients($session), true) => TypeEvaluation::Client,
+            $session->getFinanceur() === $client => TypeEvaluation::Financeur,
+            default => throw $this->createNotFoundException('Lien invalide.'),
+        };
 
         $personne = $client->getContactNom() !== ''
             ? $client->getContactNom() . ', ' . $client->getNom()
             : $client->getNom();
 
-        return $this->avis($request, $session, $client, null, $personne, null);
+        return $this->avis($request, $session, $type, $client, null, $personne, null);
     }
 
     #[Route(
@@ -134,7 +139,7 @@ class EvaluationController extends AbstractController
             throw $this->createNotFoundException('Lien invalide.');
         }
 
-        return $this->avis($request, $session, null, $formateur, $formateur->libelle() . ', formateur', $this->generateUrl('app_emargement_formateur', [
+        return $this->avis($request, $session, TypeEvaluation::Formateur, null, $formateur, $formateur->libelle() . ', formateur', $this->generateUrl('app_emargement_formateur', [
             'session' => $session->getId(),
             'formateur' => $formateur->getId(),
             'jeton' => $jeton,
@@ -142,26 +147,27 @@ class EvaluationController extends AbstractController
     }
 
     /**
-     * L'avis d'un client ou le bilan d'un formateur sur la session.
+     * L'avis d'un client ou du financeur, ou le bilan d'un formateur, sur la session.
      *
      * @param ?string $retour La page personnelle où revenir ; un client n'en a pas.
      */
     private function avis(
         Request          $request,
         SessionFormation $session,
+        TypeEvaluation   $type,
         ?Client          $client,
         ?Formateur       $formateur,
         string           $personne,
         ?string          $retour,
     ): Response
     {
-        $type = $client !== null ? TypeEvaluation::Client : TypeEvaluation::Formateur;
         $erreur = null;
 
         if ($request->isMethod('POST')) {
             try {
                 $this->evaluations->repondreTiers(
                     $session,
+                    $type,
                     $client,
                     $formateur,
                     $request->request->all('r'),
@@ -185,7 +191,7 @@ class EvaluationController extends AbstractController
             'personne' => $personne,
             'type' => $type,
             'questions' => $this->evaluations->questions($type, $session),
-            'evaluation' => $this->evaluations->duTiers($session, $client, $formateur),
+            'evaluation' => $this->evaluations->duTiers($session, $type, $client, $formateur),
             'ouvert' => $this->evaluations->etat($type, $session) === 'ouvert',
             'saisie' => $request->request->all('r'),
             'retour' => $retour,

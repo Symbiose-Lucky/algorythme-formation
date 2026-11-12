@@ -13,8 +13,8 @@ use Doctrine\ORM\Mapping as ORM;
  * Au sujet d'un participant (par son inscription) : positionnement à
  * l'entrée, satisfaction à chaud ou à froid, remplis par lui, ou
  * évaluation des acquis, remplie par le formateur ou saisie par un
- * administrateur. Sans inscription : la satisfaction d'un client de la
- * session, ou le bilan d'un de ses formateurs.
+ * administrateur. Sans inscription : la satisfaction d'un client ou du
+ * financeur de la session, ou le bilan d'un de ses formateurs.
  *
  * Les réponses sont conservées avec l'énoncé des questions tel qu'il a été
  * posé : la preuve reste lisible même si le questionnaire ou le programme
@@ -39,7 +39,7 @@ class Evaluation
     #[ORM\ManyToOne]
     private ?Inscription $inscription;
 
-    /** Le client qui donne son avis sur la session. */
+    /** Le client ou le financeur (une fiche client aussi) qui donne son avis sur la session. */
     #[ORM\ManyToOne]
     private ?Client $client;
 

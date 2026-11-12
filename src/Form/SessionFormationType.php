@@ -10,6 +10,7 @@ use App\Enum\FormuleSession;
 use App\Enum\ModaliteSession;
 use App\Enum\StatutFormation;
 use App\Enum\StatutSession;
+use App\Enum\TypeClient;
 use App\Repository\FormationRepository;
 use Doctrine\ORM\EntityRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
@@ -71,8 +72,24 @@ class SessionFormationType extends AbstractType
                 'query_builder' => static fn(EntityRepository $clients) => $clients
                     ->createQueryBuilder('c')
                     ->where('c.archive = false')
+                    ->andWhere('c.type != :financeur')
+                    ->setParameter('financeur', TypeClient::Financeur)
                     ->orderBy('c.nom', 'ASC'),
                 'help' => "Le commanditaire d'une session intra.",
+            ])
+            ->add('financeur', EntityType::class, [
+                'label' => 'Financeur',
+                'class' => Client::class,
+                'required' => false,
+                'placeholder' => 'Aucun (financement par le client)',
+                'choice_label' => static fn(Client $client) => $client->getNom(),
+                'query_builder' => static fn(EntityRepository $clients) => $clients
+                    ->createQueryBuilder('c')
+                    ->where('c.archive = false')
+                    ->andWhere('c.type = :financeur')
+                    ->setParameter('financeur', TypeClient::Financeur)
+                    ->orderBy('c.nom', 'ASC'),
+                'help' => 'OPCO, France Travail, Région… À créer dans les clients, avec le type « Financeur ».',
             ])
             ->add('formateurs', EntityType::class, [
                 'label' => 'Formateurs',

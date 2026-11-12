@@ -90,6 +90,14 @@
                 {% endif %}
             </div>
             <div class="adm-detail">
+                <h3>Financeur</h3>
+                {% if session.financeur %}
+                    <p><a href="{{ path('app_admin_client_voir', { id: session.financeur.id }) }}">{{ session.financeur.nom }}</a></p>
+                {% else %}
+                    <p class="adm-muet">Aucun</p>
+                {% endif %}
+            </div>
+            <div class="adm-detail">
                 <h3>Formateurs</h3>
                 {% if session.formateurs is empty %}
                     <p class="adm-muet">Aucun formateur désigné</p>
