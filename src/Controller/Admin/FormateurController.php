@@ -2,17 +2,77 @@
 
 namespace App\Controller\Admin;
 
+use App\Controller\EspaceFormateurController;
 use App\Entity\Formateur;
 use App\Entity\Journalisable;
 use App\Entity\SessionFormation;
 use App\Form\FormateurType;
+use App\Service\Jetons;
+use App\Service\MailService;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Contracts\Service\Attribute\Required;
+use Throwable;
 
 #[IsGranted('ROLE_ADMIN')]
 #[Route('/admin/formateurs', name: 'app_admin_formateur')]
 class FormateurController extends AbstractFicheController
 {
+    private Jetons $jetons;
+
+    #[Required]
+    public function setJetons(Jetons $jetons): void
+    {
+        $this->jetons = $jetons;
+    }
+
+    /** Envoie au formateur le lien de son espace personnel. */
+    #[Route('/{id}/espace/envoyer', name: '_espace_envoyer', requirements: ['id' => '\d+'], methods: ['POST'])]
+    public function envoyerEspace(int $id, Request $request, MailService $mails): Response
+    {
+        if (!$this->isCsrfTokenValid('submit', $request->request->getString('_csrf_token'))) {
+            throw $this->createAccessDeniedException('Jeton CSRF invalide.');
+        }
+
+        $formateur = $this->fiche($id);
+        assert($formateur instanceof Formateur);
+
+        if ($formateur->isArchive() || $formateur->getEmail() === '') {
+            $this->addFlash('erreur', "Ce formateur est archivé ou n'a pas d'adresse email : rien n'a été envoyé.");
+        } else {
+            try {
+                $mails->sendLienEspaceFormateur($formateur->getEmail(), $this->lienEspace($formateur));
+                $this->addFlash('succes', 'Lien de son espace envoyé à ' . $formateur->getEmail() . '.');
+            } catch (Throwable) {
+                $this->addFlash('erreur', "L'envoi de l'email a échoué.");
+            }
+        }
+
+        return $this->redirectToRoute('app_admin_formateur_voir', ['id' => $id]);
+    }
+
+    protected function complement(Journalisable $fiche): ?string
+    {
+        assert($fiche instanceof Formateur);
+
+        // Un formateur archivé n'a plus d'espace.
+        return $fiche->isArchive() ? null : $this->renderView('admin/formateur/_espace.html.twig', [
+            'formateur' => $fiche,
+            'lien' => $this->lienEspace($fiche),
+        ]);
+    }
+
+    private function lienEspace(Formateur $formateur): string
+    {
+        return $this->generateUrl('app_espace_formateur', [
+            'id' => $formateur->getId(),
+            'jeton' => $this->jetons->pour(EspaceFormateurController::sujet($formateur)),
+        ], UrlGeneratorInterface::ABSOLUTE_URL);
+    }
+
     protected function classe(): string
     {
         return Formateur::class;

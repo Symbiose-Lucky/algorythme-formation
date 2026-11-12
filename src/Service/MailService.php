@@ -320,6 +320,34 @@ class MailService
     }
 
     /**
+     * Envoie à un formateur le lien de son espace personnel, où il retrouve
+     * toutes ses sessions.
+     *
+     * @throws BrevoException
+     * @throws LoaderError
+     * @throws RuntimeError
+     * @throws SyntaxError
+     */
+    public function sendLienEspaceFormateur(string $destinataire, string $lien): void
+    {
+        $sujet = 'Votre espace formateur - Algorythme Formation';
+
+        $message = $this->twig->render('emails/simple_message.html.twig', [
+            'sujet' => $sujet,
+            'message' => "Bonjour,
+                    <p>Voici le lien de votre espace formateur. Vous y retrouvez vos sessions à venir et
+                    passées, avec pour chacune les dates, le groupe, le positionnement des participants,
+                    le programme, votre feuille de présence, l'évaluation des acquis et votre bilan.</p>
+                    <p>Ce lien vous est propre et reste valable : gardez-le, ne le transmettez pas.
+                    Il s'ouvre sans compte ni mot de passe.</p>",
+            'boutonText' => 'Ouvrir mon espace',
+            'boutonUrl' => $lien,
+        ]);
+
+        $this->sendBrevoMail($sujet, $destinataire, $message);
+    }
+
+    /**
      * Demande à une personne de signer un document, par son lien personnel.
      *
      * @throws BrevoException

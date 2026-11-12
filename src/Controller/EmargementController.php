@@ -138,6 +138,11 @@ class EmargementController extends AbstractController
             'aSigner' => $peutSigner ? $aSigner : null,
             'inscriptionAnnulee' => !$peutSigner,
             'questionnaires' => $this->questionnaires($request, $session, $inscription),
+            // Le formateur peut revenir à son espace, où sont toutes ses sessions.
+            'espace' => $formateur === null || $formateur->isArchive() ? null : $this->generateUrl('app_espace_formateur', [
+                'id' => $formateur->getId(),
+                'jeton' => $this->jetons->pour(EspaceFormateurController::sujet($formateur)),
+            ]),
             'erreur' => $erreur,
         ], new Response(status: $erreur === null ? 200 : 422));
     }

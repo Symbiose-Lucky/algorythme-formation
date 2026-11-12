@@ -1,0 +1,61 @@
+{% extends 'signature/base.html.twig' %}
+
+{% block title %}Mon espace formateur{% endblock %}
+
+{# Une session dans une liste : la formation, ses dates, le groupe. #}
+{% macro ligne(ligne) %}
+    {% import 'admin/session/_formats.html.twig' as formats %}
+    {% set session = ligne.session %}
+    <li>
+        <a href="{{ ligne.lien }}">
+            <strong>{{ session.formation.nom }}</strong>
+        </a>
+        <span>
+            {{ formats.dates(session) }}
+            · {{ ligne.inscrits }} participant{{ ligne.inscrits > 1 ? 's' }}
+            {% if session.lieu %}· {{ session.lieu }}{% endif %}
+            {% if session.statut.value == 'annulee' %}· <span class="adm-etiquette adm-etiquette--annulee">Annulée</span>{% endif %}
+        </span>
+    </li>
+{% endmacro %}
+
+{% block contenu %}
+
+    <section class="adm-carte">
+        <div class="adm-carte__corps">
+            <p class="adm-signer__sur-titre">Espace formateur</p>
+            <h1 class="adm-signer__titre">{{ formateur.libelle }}</h1>
+            <p class="adm-champ__aide">
+                Vos sessions, leur programme et leurs participants. Ce lien vous est propre et reste valable :
+                gardez-le, ne le transmettez pas.
+            </p>
+        </div>
+    </section>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete">
+            <h2>Sessions à venir ou en cours</h2>
+            <p class="adm-carte__compte">{{ aVenir|length }}</p>
+        </header>
+        {% if aVenir is empty %}
+            <p class="adm-vide">Aucune session prévue pour l'instant.</p>
+        {% else %}
+            <ul class="adm-liens adm-espace__sessions">
+                {% for ligne in aVenir %}{{ _self.ligne(ligne) }}{% endfor %}
+            </ul>
+        {% endif %}
+    </section>
+
+    {% if passees %}
+        <section class="adm-carte">
+            <header class="adm-carte__tete">
+                <h2>Sessions passées ou annulées</h2>
+                <p class="adm-carte__compte">{{ passees|length }}</p>
+            </header>
+            <ul class="adm-liens adm-espace__sessions">
+                {% for ligne in passees %}{{ _self.ligne(ligne) }}{% endfor %}
+            </ul>
+        </section>
+    {% endif %}
+
+{% endblock %}

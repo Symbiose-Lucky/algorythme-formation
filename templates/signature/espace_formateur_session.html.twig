@@ -1,0 +1,136 @@
+{% extends 'signature/base.html.twig' %}
+
+{% import 'admin/session/_formats.html.twig' as formats %}
+
+{% set jours = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'] %}
+
+{% block title %}{{ session.formation.nom }}{% endblock %}
+
+{% block contenu %}
+
+    <p><a href="{{ retour }}">← Mes sessions</a></p>
+
+    <section class="adm-carte">
+        <div class="adm-carte__corps">
+            <p class="adm-signer__sur-titre">Session {{ session.reference }} · {{ session.statut.libelle }}</p>
+            <h1 class="adm-signer__titre">{{ session.formation.nom }}</h1>
+            <p class="adm-signer__qui">{{ formats.dates(session) }}</p>
+        </div>
+        <div class="adm-carte__corps adm-espace__action">
+            <a href="{{ lienSession }}" class="adm-bouton adm-bouton--principal">
+                Feuille de présence, évaluation des acquis et bilan
+            </a>
+        </div>
+    </section>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete"><h2>Organisation</h2></header>
+        <ul class="adm-liens">
+            <li><strong>Modalité</strong><span>{{ session.modalite.libelle }}, {{ session.formule.libelle|lower }}</span></li>
+            <li><strong>Lieu</strong><span>{{ session.lieu ?: 'À préciser' }}</span></li>
+            {% if session.client %}<li><strong>Client</strong><span>{{ session.client.nom }}</span></li>{% endif %}
+            {% for seance in session.seancesTriees %}
+                <li>
+                    <strong>{{ jours[seance.jour|date('w')] }} {{ seance.jour|date('d/m/Y') }}</strong>
+                    <span>{{ seance.debut|date('H:i') }} – {{ seance.fin|date('H:i') }}</span>
+                </li>
+            {% else %}
+                <li><span>Les dates de cette session ne sont pas encore fixées.</span></li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete">
+            <h2>Participants</h2>
+            <p class="adm-carte__compte">{{ participants|length }}</p>
+        </header>
+        {% if participants is empty %}
+            <p class="adm-vide">Aucun participant inscrit pour l'instant.</p>
+        {% else %}
+            <ul class="adm-liens">
+                {% for ligne in participants %}
+                    {% set participant = ligne.inscription.participant %}
+                    <li>
+                        <strong>
+                            {{ participant.prenom }} {{ participant.nom }}
+                            {% if participant.fonction or ligne.inscription.client %}
+                                <span class="adm-questionnaire__detail">
+                                    {{ participant.fonction }}{{ participant.fonction and ligne.inscription.client ? ' · ' }}{{ ligne.inscription.client ? ligne.inscription.client.nom }}
+                                </span>
+                            {% endif %}
+                        </strong>
+                        <span>
+                            {% if participant.amenagements %}
+                                <span class="adm-etiquette adm-etiquette--projet">Aménagement à prévoir : contactez-nous</span>
+                            {% endif %}
+                            {{ ligne.positionnement ? 'Positionnement reçu' : 'Positionnement en attente' }}
+                        </span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </section>
+
+    {% if synthese.nombre > 0 %}
+        <section class="adm-carte">
+            <header class="adm-carte__tete">
+                <h2>Positionnement du groupe</h2>
+                <p class="adm-carte__compte">
+                    {{ synthese.nombre }} réponse{{ synthese.nombre > 1 ? 's' }} sur {{ participants|length }}.
+                    Niveau déclaré avant la formation, de 1 (découvre) à 4 (sait faire seul).
+                </p>
+            </header>
+            <ul class="adm-liens">
+                {% for question, ligne in synthese.moyennes %}
+                    <li>
+                        {{ question }}
+                        <span class="adm-jauge-ligne">
+                            <span class="adm-jauge" aria-hidden="true"><span style="width: {{ (ligne.moyenne / ligne.sur * 100)|round }}%"></span></span>
+                            <strong>{{ ligne.moyenne|number_format(1, ',') }}</strong> / {{ ligne.sur }}
+                        </span>
+                    </li>
+                {% endfor %}
+            </ul>
+            {% for question, textes in synthese.textes %}
+                <div class="adm-carte__corps adm-remarques">
+                    <h3>{{ question }}</h3>
+                    <ul>
+                        {% for texte in textes %}
+                            <li>{{ texte.texte|nl2br }} <span class="adm-muet">· {{ texte.qui }}</span></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endfor %}
+        </section>
+    {% endif %}
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete">
+            <h2>Programme à dispenser</h2>
+            <p class="adm-carte__compte">Version {{ session.programme.numero }}, celle retenue pour cette session.</p>
+        </header>
+        <div class="adm-carte__corps adm-espace__programme">
+            <h3>Objectifs</h3>
+            <ul>
+                {% for objectif in objectifs %}<li>{{ objectif }}</li>{% endfor %}
+            </ul>
+            {% for journee in deroule %}
+                {% if journee.titre %}
+                    <h3>{{ journee.titre }}{% if journee.duree %} <span class="adm-muet">· {{ journee.duree }}</span>{% endif %}</h3>
+                {% elseif loop.first %}
+                    <h3>Déroulé</h3>
+                {% endif %}
+                {% for sequence in journee.sequences %}
+                    <h4>{{ sequence.titre }}{% if sequence.duree %} <span class="adm-muet">· {{ sequence.duree }}</span>{% endif %}</h4>
+                    {% if sequence.points %}
+                        <ul>
+                            {% for point in sequence.points %}<li>{{ point }}</li>{% endfor %}
+                        </ul>
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+        </div>
+    </section>
+
+{% endblock %}

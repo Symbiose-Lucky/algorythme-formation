@@ -40,6 +40,9 @@
         </dl>
     </section>
 
+    {# Bloc propre à ce type de fiche, déjà mis en forme par son contrôleur. #}
+    {{ complement|raw }}
+
     {% for liste in listes %}
         <section class="adm-carte">
             <header class="adm-carte__tete">

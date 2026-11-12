@@ -1746,6 +1746,48 @@ body.adm {
     }
 }
 
+// Espace du formateur : ses sessions, puis le détail de l'une d'elles.
+.adm-espace {
+    // Une session : le titre, puis ses dates et son groupe en dessous.
+    &__sessions li {
+        display: grid;
+        gap: 2px;
+    }
+
+    &__action .adm-bouton {
+        width: 100%;
+        min-height: 42px;
+        white-space: normal;
+        text-align: center;
+    }
+
+    &__programme {
+        h3 {
+            margin: 14px 0 6px;
+            font-size: 14px;
+
+            &:first-child {
+                margin-top: 0;
+            }
+        }
+
+        h4 {
+            margin: 10px 0 4px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        ul {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        li + li {
+            margin-top: 2px;
+        }
+    }
+}
+
 // La jauge et sa valeur restent sur une ligne.
 .adm-jauge-ligne {
     white-space: nowrap;

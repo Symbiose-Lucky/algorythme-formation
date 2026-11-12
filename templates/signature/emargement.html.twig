@@ -7,6 +7,10 @@
 
 {% block contenu %}
 
+    {% if espace %}
+        <p><a href="{{ espace }}">← Mes sessions</a></p>
+    {% endif %}
+
     <section class="adm-carte">
         <div class="adm-carte__corps">
             <p class="adm-signer__sur-titre">Feuille de présence · session {{ session.reference }}</p>

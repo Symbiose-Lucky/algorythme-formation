@@ -1,0 +1,22 @@
+{# Carte « Espace formateur » de la fiche d'un formateur : son lien
+   personnel, à lui transmettre. #}
+<section class="adm-carte" id="espace">
+    <header class="adm-carte__tete">
+        <h2>Espace formateur</h2>
+        <p class="adm-carte__compte">
+            Un lien personnel et permanent, sans compte : toutes ses sessions, leur programme, leurs participants.
+        </p>
+        {% if formateur.email %}
+            <form method="post" action="{{ path('app_admin_formateur_espace_envoyer', { id: formateur.id }) }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
+                <button type="submit" class="adm-bouton adm-bouton--discret">Envoyer le lien par email</button>
+            </form>
+        {% endif %}
+    </header>
+    <p class="adm-carte__corps">
+        <a href="{{ lien }}" target="_blank" rel="noopener">Ouvrir son espace</a>
+        {% if not formateur.email %}
+            <span class="adm-muet">· sans adresse email : copiez ce lien pour le lui transmettre.</span>
+        {% endif %}
+    </p>
+</section>

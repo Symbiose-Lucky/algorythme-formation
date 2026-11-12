@@ -179,6 +179,7 @@ abstract class AbstractFicheController extends AbstractController
             'fiche' => $fiche,
             'details' => $this->details($fiche),
             'listes' => $this->listes($fiche),
+            'complement' => $this->complement($fiche),
             'champs' => $fiche::champs(),
             'journal' => $this->journal->pour($fiche::typeJournal(), $fiche->getId()),
         ]);
@@ -209,6 +210,15 @@ abstract class AbstractFicheController extends AbstractController
             'fiche' => $fiche,
             'form' => $form,
         ]);
+    }
+
+    /**
+     * Un bloc HTML propre à ce type de fiche, affiché avant ses listes
+     * liées (l'espace du formateur, par exemple). Null : rien.
+     */
+    protected function complement(Journalisable $fiche): ?string
+    {
+        return null;
     }
 
     protected function fiche(int $id): Journalisable
