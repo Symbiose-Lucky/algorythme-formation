@@ -1,0 +1,43 @@
+{# Grille d'évaluation des acquis : un bloc par participant, une ligne par
+   objectif. Commune au lien du formateur et à la saisie de l'admin.
+   Attend : session, objectifs, niveaux, existantes, saisie. #}
+{% for inscription in session.inscrits %}
+    {% set existante = existantes[inscription.id].acquis ?? null %}
+    <section class="adm-carte adm-acquis">
+        <header class="adm-carte__tete">
+            <h2>{{ inscription.participant.libelle }}</h2>
+            <p class="adm-carte__compte">
+                {% if existante %}
+                    Évalué le {{ existante.horodatage|date('d/m/Y à H:i', 'Europe/Paris') }} par {{ existante.auteur }}
+                {% else %}
+                    Pas encore évalué
+                {% endif %}
+            </p>
+        </header>
+        <div class="adm-carte__corps">
+            {% for objectif in objectifs %}
+                {% set cle = 'objectif_' ~ loop.index0 %}
+                {% set donnee = saisie.a[inscription.id][cle] ?? (existante ? existante.valeur(cle) : '') %}
+                <fieldset class="adm-question">
+                    <legend>{{ objectif }}</legend>
+                    <div class="adm-question__options">
+                        {% for valeur, libelle in niveaux %}
+                            <label>
+                                <input type="radio" name="a[{{ inscription.id }}][{{ cle }}]" value="{{ valeur }}"
+                                       {{ donnee == valeur ? 'checked' }}>
+                                <span>{{ libelle }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </fieldset>
+            {% endfor %}
+            <fieldset class="adm-question">
+                <legend>Commentaire <span>facultatif, repris sur l'attestation</span></legend>
+                <textarea name="c[{{ inscription.id }}]" rows="2" maxlength="2000"
+                          aria-label="Commentaire sur {{ inscription.participant.libelle }}">{{ saisie.c[inscription.id] ?? (existante ? existante.valeur('commentaire') : '') }}</textarea>
+            </fieldset>
+        </div>
+    </section>
+{% else %}
+    <p class="adm-alerte adm-alerte--attention">Cette session n'a pas de participant inscrit.</p>
+{% endfor %}

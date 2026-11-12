@@ -14,9 +14,9 @@
 
 {% block body %}
 
-    {# Le texte des domaines est éditorial : il vit ici, pas dans SmartOF.
-       `catalogue` est le slug du domaine SmartOF correspondant (custom_field_4
-       passé au slugger) : le lien vers le catalogue filtré n'apparaît que si
+    {# Le texte des domaines est éditorial : il vit ici, pas dans l'admin.
+       `catalogue` est le slug du domaine correspondant (le domaine saisi sur
+       la formation, passé au slugger) : le lien vers le catalogue filtré n'apparaît que si
        ce slug figure dans `domainesCatalogue` (MainController). #}
     {% set domaines = [
         {

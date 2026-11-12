@@ -1,0 +1,285 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Évaluations {{ session.reference }}{% endblock %}
+
+{% block titre_page %}Évaluations · session {{ session.reference }}{% endblock %}
+
+{% block sous_titre %}
+    <p class="adm-entete__sous-titre">
+        <a href="{{ path('app_admin_session_voir', { id: session.id, _fragment: 'evaluations' }) }}">← Session {{ session.reference }}</a>
+        · {{ session.formation.nom }}
+    </p>
+{% endblock %}
+
+{% block actions %}
+    {% if inscrits > 0 %}
+        <a href="{{ path('app_admin_evaluation_acquis', { id: session.id }) }}" class="adm-bouton adm-bouton--principal">
+            Évaluer les acquis
+        </a>
+    {% endif %}
+{% endblock %}
+
+{# Un nombre à une décimale : « 4,5 ». #}
+{% macro nombre(valeur) -%}
+    {{ valeur|number_format(1, ',', ' ') }}
+{%- endmacro %}
+
+{# Le bouton de relance d'un questionnaire ouvert. #}
+{% macro relance(session, type, libelle) %}
+    <form method="post" action="{{ path('app_admin_evaluation_relancer', { id: session.id }) }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
+        <input type="hidden" name="type" value="{{ type.value }}">
+        <button type="submit" class="adm-bouton adm-bouton--discret">{{ libelle }}</button>
+    </form>
+{% endmacro %}
+
+{# La synthèse des réponses à un questionnaire : moyennes, répartitions, remarques. #}
+{% macro synthese(synthese) %}
+    {% if synthese.moyennes or synthese.choix %}
+        <div class="adm-table-zone">
+            <table class="adm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Question</th>
+                        <th scope="col">Résultat</th>
+                        <th scope="col" class="adm-table__nombre">Réponses</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for question, ligne in synthese.moyennes %}
+                        <tr>
+                            <td>{{ question }}</td>
+                            <td class="adm-jauge-ligne">
+                                <span class="adm-jauge" aria-hidden="true">
+                                    <span style="width: {{ (ligne.moyenne / ligne.sur * 100)|round }}%"></span>
+                                </span>
+                                <strong>{{ _self.nombre(ligne.moyenne) }}</strong> / {{ ligne.sur }}
+                            </td>
+                            <td class="adm-table__nombre">{{ ligne.nombre }}</td>
+                        </tr>
+                    {% endfor %}
+                    {% for question, repartition in synthese.choix %}
+                        <tr>
+                            <td>{{ question }}</td>
+                            <td>
+                                {% for libelle, nombre in repartition %}
+                                    {{ libelle }} : <strong>{{ nombre }}</strong>{{ not loop.last ? ' · ' }}
+                                {% endfor %}
+                            </td>
+                            <td class="adm-table__nombre">{{ repartition|reduce((somme, n) => somme + n, 0) }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+    {% for question, textes in synthese.textes %}
+        <div class="adm-carte__corps adm-remarques">
+            <h3>{{ question }}</h3>
+            <ul>
+                {% for texte in textes %}
+                    <li>{{ texte.texte|nl2br }} <span class="adm-muet">· {{ texte.qui }}</span></li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endfor %}
+{% endmacro %}
+
+{% block contenu %}
+
+    {% if lignes is empty and tiers is empty %}
+        <p class="adm-alerte adm-alerte--attention">
+            Cette session n'a ni participant, ni client, ni formateur : complétez sa fiche.
+        </p>
+    {% else %}
+
+        {% if lignes %}
+        <section class="adm-carte">
+            <header class="adm-carte__tete">
+                <h2>Participants</h2>
+                <p class="adm-carte__compte">
+                    Chaque participant répond depuis son lien personnel, le même que pour l'émargement.
+                    Le formateur évalue les acquis depuis le sien.
+                </p>
+            </header>
+            <div class="adm-table-zone">
+                <table class="adm-table adm-emargement">
+                    <thead>
+                        <tr>
+                            <th scope="col">Participant</th>
+                            {% for info in types|filter(i => i.type.value in participants) %}
+                                <th scope="col">
+                                    {{ info.type.libelle }}
+                                    <span>
+                                        {% if info.etat == 'ouvert' %}
+                                            Ouvert
+                                        {% elseif info.etat == 'clos' %}
+                                            Fermé
+                                        {% elseif info.ouvreLe %}
+                                            Ouvre le {{ info.ouvreLe|date('d/m/Y') }}
+                                        {% else %}
+                                            Ouvre à la dernière séance (à planifier)
+                                        {% endif %}
+                                    </span>
+                                </th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ligne in lignes %}
+                            <tr>
+                                <th scope="row">
+                                    {{ ligne.inscription.participant.libelle }}
+                                    {% if not ligne.inscription.estActive %}<span>Inscription annulée</span>{% endif %}
+                                    <a href="{{ ligne.lien }}" target="_blank" rel="noopener">Lien personnel</a>
+                                </th>
+                                {% for info in types|filter(i => i.type.value in participants) %}
+                                    {% set evaluation = ligne.evaluations[info.type.value] ?? null %}
+                                    <td>
+                                        {% if evaluation %}
+                                            <a href="{{ path('app_admin_evaluation_reponse', { id: session.id, evaluation: evaluation.id }) }}"
+                                               class="adm-etiquette adm-etiquette--terminee">
+                                                {{ info.type.estQuestionnaire ? 'Répondu' : 'Évalué' }}
+                                            </a>
+                                            <span class="adm-emargement__preuve">
+                                                Le {{ evaluation.horodatage|date('d/m à H:i', 'Europe/Paris') }}
+                                                {%- if not info.type.estQuestionnaire %}, par {{ evaluation.auteur }}{% endif %}
+                                            </span>
+                                        {% elseif not ligne.inscription.estActive %}
+                                            <span class="adm-muet">—</span>
+                                        {% elseif info.etat == 'ouvert' %}
+                                            <span class="adm-etiquette adm-etiquette--projet">En attente</span>
+                                        {% elseif info.etat == 'clos' %}
+                                            <span class="adm-muet">Sans réponse</span>
+                                        {% else %}
+                                            <span class="adm-muet">Pas ouvert</span>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        {% endif %}
+
+        {% if tiers %}
+            <section class="adm-carte">
+                <header class="adm-carte__tete">
+                    <h2>Clients et formateurs</h2>
+                    <p class="adm-carte__compte">
+                        Leur avis sur la session, à partir de la dernière séance. Le client a un lien propre ;
+                        le formateur répond depuis son lien d'émargement.
+                    </p>
+                </header>
+                <div class="adm-table-zone">
+                    <table class="adm-table adm-emargement">
+                        <thead>
+                            <tr>
+                                <th scope="col">Personne</th>
+                                <th scope="col">Avis sur la session</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ligne in tiers %}
+                                {% set info = types[ligne.type.value] %}
+                                <tr>
+                                    <th scope="row">
+                                        {{ ligne.nom }}
+                                        <span>{{ ligne.role }}</span>
+                                        <a href="{{ ligne.lien }}" target="_blank" rel="noopener">Lien personnel</a>
+                                    </th>
+                                    <td>
+                                        {% if ligne.evaluation %}
+                                            <a href="{{ path('app_admin_evaluation_reponse', { id: session.id, evaluation: ligne.evaluation.id }) }}"
+                                               class="adm-etiquette adm-etiquette--terminee">Répondu</a>
+                                            <span class="adm-emargement__preuve">
+                                                Le {{ ligne.evaluation.horodatage|date('d/m à H:i', 'Europe/Paris') }}
+                                            </span>
+                                        {% elseif info.etat == 'ouvert' %}
+                                            <span class="adm-etiquette adm-etiquette--projet">En attente</span>
+                                        {% elseif info.etat == 'clos' %}
+                                            <span class="adm-muet">Sans réponse</span>
+                                        {% else %}
+                                            <span class="adm-muet">Pas ouvert</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        {% endif %}
+
+        {% if progression.objectifs %}
+            <section class="adm-carte">
+                <header class="adm-carte__tete">
+                    <h2>Progression déclarée</h2>
+                    <p class="adm-carte__compte">
+                        Niveau moyen sur chaque objectif, avant puis après la formation, sur 4
+                        ({{ progression.nombre }} participant{{ progression.nombre > 1 ? 's' }} ayant répondu aux deux questionnaires).
+                    </p>
+                </header>
+                <div class="adm-table-zone">
+                    <table class="adm-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Objectif</th>
+                                <th scope="col" class="adm-table__nombre">Avant</th>
+                                <th scope="col" class="adm-table__nombre">Après</th>
+                                <th scope="col" class="adm-table__nombre">Écart</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for objectif, ligne in progression.objectifs %}
+                                <tr>
+                                    <td>{{ objectif }}</td>
+                                    <td class="adm-table__nombre">{{ _self.nombre(ligne.avant) }}</td>
+                                    <td class="adm-table__nombre">{{ _self.nombre(ligne.apres) }}</td>
+                                    <td class="adm-table__nombre">
+                                        <strong>{{ ligne.apres >= ligne.avant ? '+' : '−' }}{{ _self.nombre((ligne.apres - ligne.avant)|abs) }}</strong>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        {% endif %}
+
+        {% for info in types|filter(i => i.attendus > 0) %}
+            <section class="adm-carte">
+                <header class="adm-carte__tete">
+                    <h2>{{ info.type.libelle }}</h2>
+                    <p class="adm-carte__compte">
+                        {{ info.synthese.nombre }} réponse{{ info.synthese.nombre > 1 ? 's' }} sur {{ info.attendus }}
+                        {{ info.qui }}{{ info.attendus > 1 ? 's' }}
+                    </p>
+                    {% if info.etat == 'ouvert' and info.synthese.nombre < info.attendus %}
+                        {{ _self.relance(session, info.type, info.type.estQuestionnaire ? 'Envoyer par email à ceux qui n\'ont pas répondu' : 'Demander au formateur par email') }}
+                    {% endif %}
+                </header>
+                {% if info.synthese.nombre == 0 %}
+                    <p class="adm-vide">
+                        {% if info.etat == 'ouvert' %}
+                            Aucune réponse pour l'instant.
+                        {% elseif info.etat == 'clos' %}
+                            Fermé sans réponse.
+                        {% elseif info.ouvreLe %}
+                            Ouvre le {{ info.ouvreLe|date('d/m/Y') }}.
+                        {% else %}
+                            Ouvre à la dernière séance : planifiez les séances de la session.
+                        {% endif %}
+                    </p>
+                {% else %}
+                    {{ _self.synthese(info.synthese) }}
+                {% endif %}
+            </section>
+        {% endfor %}
+
+    {% endif %}
+
+{% endblock %}

@@ -1,0 +1,102 @@
+{% extends 'admin/base.html.twig' %}
+
+{% form_theme form with 'admin/_form_theme.html.twig' only %}
+
+{% set creation = session.id is null %}
+{% set retour = creation ? path('app_admin_session') : path('app_admin_session_voir', { id: session.id }) %}
+
+{% block title %}{{ creation ? 'Nouvelle session' : 'Modifier ' ~ session.reference }}{% endblock %}
+
+{% block titre_page %}{{ creation ? 'Nouvelle session' : 'Modifier la session ' ~ session.reference }}{% endblock %}
+
+{% block sous_titre %}
+    <p class="adm-entete__sous-titre">
+        {% if creation %}
+            Une session en projet peut rester sans dates : elles se précisent ensuite.
+        {% else %}
+            {{ session.formation.nom }}
+        {% endif %}
+    </p>
+{% endblock %}
+
+{# Une séance : date, début, fin, et le bouton qui la retire. #}
+{% macro seance(champ) %}
+    <div class="adm-seance" data-collection-target="ligne">
+        {{ form_row(champ.jour) }}
+        {{ form_row(champ.debut) }}
+        {{ form_row(champ.fin) }}
+        <button type="button" class="adm-bouton adm-bouton--discret" data-action="collection#retirer">
+            Retirer
+        </button>
+    </div>
+{% endmacro %}
+
+{% block contenu %}
+
+    {{ form_start(form, { attr: { class: 'adm-fiche', novalidate: 'novalidate' } }) }}
+
+    {% if not form.vars.valid %}
+        <p class="adm-alerte" role="alert">
+            La session n'a pas été enregistrée : certains champs sont à corriger.
+        </p>
+    {% endif %}
+    {{ form_errors(form) }}
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete"><h2>Session</h2></header>
+        <div class="adm-carte__corps adm-grille">
+            {% if form.formation is defined %}
+                <div class="adm-grille__large">{{ form_row(form.formation) }}</div>
+            {% endif %}
+            {{ form_row(form.formule) }}
+            {{ form_row(form.modalite) }}
+            {{ form_row(form.statut) }}
+            {{ form_row(form.effectifMax) }}
+            <div class="adm-grille__large">{{ form_row(form.client) }}</div>
+            <div class="adm-grille__large">{{ form_row(form.formateurs) }}</div>
+            <div class="adm-grille__large">{{ form_row(form.lieu) }}</div>
+            <div class="adm-grille__large">{{ form_row(form.notes) }}</div>
+        </div>
+    </section>
+
+    <section class="adm-carte"
+             data-controller="collection"
+             data-collection-index-value="{{ form.seances|length ? max(form.seances|keys) + 1 : 0 }}"
+             data-collection-prototype-value="{{ _self.seance(form.seances.vars.prototype)|e('html_attr') }}">
+        <header class="adm-carte__tete">
+            <h2>Séances</h2>
+            <p class="adm-carte__compte">Une ligne par demi-journée : c'est l'unité de l'émargement.</p>
+            <button type="button" class="adm-bouton adm-bouton--discret" data-action="collection#ajouter">
+                Ajouter une séance
+            </button>
+        </header>
+        <div class="adm-carte__corps">
+            {{ form_errors(form.seances) }}
+            <div class="adm-seances" data-collection-target="liste">
+                {% for champ in form.seances %}
+                    {{ _self.seance(champ) }}
+                {% endfor %}
+            </div>
+            <p class="adm-muet" data-collection-target="vide" {{ form.seances|length ? 'hidden' }}>
+                Aucune séance pour l'instant.
+            </p>
+        </div>
+    </section>
+    {# La collection est rendue ci-dessus : sans cela, form_end la rendrait une seconde fois. #}
+    {% do form.seances.setRendered %}
+
+    <div class="adm-fiche__actions">
+        {% if form.motif is defined %}
+            {{ form_row(form.motif) }}
+        {% endif %}
+        <div class="adm-fiche__boutons">
+            <a href="{{ retour }}" class="adm-bouton adm-bouton--discret">Annuler</a>
+            <button type="submit" class="adm-bouton adm-bouton--principal">
+                {{ creation ? 'Créer la session' : 'Enregistrer' }}
+            </button>
+        </div>
+    </div>
+
+    {{ form_end(form) }}
+
+{% endblock %}

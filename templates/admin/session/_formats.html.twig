@@ -1,0 +1,23 @@
+{# Mise en forme des valeurs d'une session dans l'admin. #}
+
+{# Étiquette de statut (StatutSession). #}
+{% macro statut(statut) -%}
+    <span class="adm-etiquette adm-etiquette--{{ statut.value }}">{{ statut.libelle }}</span>
+{%- endmacro %}
+
+{# Les dates d'une session : « 01/12/2026 », « du 01/12 au 03/12/2026 », ou « À planifier ». #}
+{% macro dates(session) -%}
+    {%- if session.dateDebut is null -%}
+        <span class="adm-muet">À planifier</span>
+    {%- elseif session.dateDebut == session.dateFin -%}
+        {{ session.dateDebut|date('d/m/Y') }}
+    {%- else -%}
+        du {{ session.dateDebut|date(session.dateDebut|date('Y') == session.dateFin|date('Y') ? 'd/m' : 'd/m/Y') }}
+        au {{ session.dateFin|date('d/m/Y') }}
+    {%- endif -%}
+{%- endmacro %}
+
+{# Un nombre d'heures : « 21 h », « 3,5 h ». #}
+{% macro heures(heures) -%}
+    {{ heures|number_format(heures == heures|round ? 0 : 1, ',', ' ') }} h
+{%- endmacro %}

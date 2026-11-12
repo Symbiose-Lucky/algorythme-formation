@@ -1,0 +1,185 @@
+{% extends 'pdf/base.html.twig' %}
+
+{# Convention de formation professionnelle (articles L. 6353-1 et suivants
+   du Code du travail), entre l'organisme et un client, pour ses
+   participants à une session.
+
+   La dernière page ne porte que les signatures. Le tableau des signatures
+   est le premier élément de cette page, à dimensions fixes : c'est ce qui
+   permet de placer d'avance la zone de signature du client
+   (DocumentsGeneres::CADRE_CLIENT). Ne rien insérer au-dessus de lui. #}
+
+{% import 'pdf/_session.html.twig' as s %}
+
+{% block titre %}Convention - {{ client.nom }}{% endblock %}
+
+{% block styles %}
+    <style>
+        .parties td { width: 50%; padding: 4mm; border: 0.5pt solid #CBD3D9; }
+        .prix td { padding: 1.6mm 3mm; border: 0.5pt solid #CBD3D9; }
+        .prix td.montant { width: 40mm; text-align: right; }
+        .prix tr.total td { background: #F3F5F7; font-weight: bold; }
+
+        /* 77 mm + 2 × 4 mm de marge intérieure : chaque colonne fait 85 mm, la moitié de la largeur utile. */
+        .signatures td { width: 77mm; border: 0.5pt solid #CBD3D9; }
+        .signatures td.qui { height: 12mm; padding: 0 4mm; vertical-align: middle; font-weight: bold; }
+        .signatures td.cadre { height: 40mm; padding: 2mm 4mm; vertical-align: middle; text-align: center; }
+        .signatures img { max-width: 70mm; max-height: 34mm; }
+    </style>
+{% endblock %}
+
+{% block contenu %}
+
+    <h1>Convention de formation professionnelle</h1>
+    <p class="sous-titre">Articles L. 6353-1 et suivants du Code du travail · session {{ session.reference }}</p>
+
+    <table class="parties">
+        <tr>
+            <td>
+                <p class="muet petit">L'organisme de formation</p>
+                <p><strong>{{ organisme.nom }}</strong>{% if organisme.formeJuridique %}, {{ organisme.formeJuridique }}{% endif %}</p>
+                <p>{{ organisme.adresse }}<br>{{ organisme.codePostal }} {{ organisme.ville }}</p>
+                <p>
+                    SIRET {{ organisme.siret }}<br>
+                    Déclaration d'activité enregistrée sous le numéro {{ organisme.nda }}
+                    {% if organisme.ndaRegion %}auprès du préfet de région {{ organisme.ndaRegion }}{% endif %}.
+                    Cet enregistrement ne vaut pas agrément de l'État.
+                </p>
+                <p>Représenté par {{ organisme.representantNom }}, {{ organisme.representantQualite|lower }}.</p>
+            </td>
+            <td>
+                <p class="muet petit">Le client</p>
+                <p><strong>{{ client.nom }}</strong></p>
+                {% if client.adresse or client.ville %}
+                    <p>{{ client.adresse }}{% if client.adresse %}<br>{% endif %}{{ client.codePostal }} {{ client.ville }}</p>
+                {% endif %}
+                {% if client.siret %}<p>SIRET {{ client.siret }}</p>{% endif %}
+                {% if client.contactNom %}
+                    <p>Représenté par {{ client.contactNom }}{% if client.contactFonction %}, {{ client.contactFonction|lower }}{% endif %}.</p>
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+
+    <h2>Article 1 - Objet</h2>
+    <p>
+        En exécution de la présente convention, l'organisme s'engage à organiser l'action de formation intitulée
+        <strong>« {{ fiche.nom }} »</strong>, qui relève des actions de formation définies à l'article L. 6313-1
+        du Code du travail.
+    </p>
+    {% if objectifs %}
+        <p>À l'issue de la formation, le participant sera capable de :</p>
+        {{ s.liste(objectifs) }}
+    {% endif %}
+    <p>Le programme détaillé de la formation est annexé à la présente convention.</p>
+
+    <h2>Article 2 - Durée, dates et lieu</h2>
+    <table class="faits">
+        <tr><td class="libelle">Durée</td><td>{{ s.heures(session.heuresPlanifiees ?: fiche.dureeHeures) }}</td></tr>
+        <tr><td class="libelle">Dates</td><td>{{ s.dates(session)|capitalize }}</td></tr>
+        <tr><td class="libelle">Modalité</td><td>{{ session.modalite.libelle }}, {{ session.formule.libelle|lower }}</td></tr>
+        <tr><td class="libelle">Lieu</td><td>{{ session.lieu ?: 'À préciser dans la convocation' }}</td></tr>
+        {% if session.formateurs is not empty %}
+            <tr>
+                <td class="libelle">Formateur{{ session.formateurs|length > 1 ? 's' }}</td>
+                <td>{% for formateur in session.formateurs %}{{ formateur.libelle }}{{ not loop.last ? ', ' }}{% endfor %}</td>
+            </tr>
+        {% endif %}
+    </table>
+    {% if session.seances is not empty %}
+        <h3>Calendrier</h3>
+        {{ s.seances(session) }}
+    {% endif %}
+
+    <div class="insecable">
+        <h2>Article 3 - Participants</h2>
+        {% if participants %}
+            <p>Le client inscrit {{ participants|length }} participant{{ participants|length > 1 ? 's' }} :</p>
+            <ul>
+                {% for inscription in participants %}
+                    <li>
+                        {{ inscription.participant.prenom }} {{ inscription.participant.nom }}
+                        {%- if inscription.participant.fonction %}, {{ inscription.participant.fonction|lower }}{% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>La liste nominative des participants sera communiquée par le client avant le début de la formation.</p>
+        {% endif %}
+        {% if publicVise %}
+            <p>Public visé : {{ publicVise|join(' ; ') }}</p>
+        {% endif %}
+        {% if prerequis %}
+            <p>Prérequis : {{ prerequis|join(' ; ') }}</p>
+        {% endif %}
+    </div>
+
+    <div class="insecable">
+        <h2>Article 4 - Moyens pédagogiques, suivi et évaluation</h2>
+        <p>
+            La formation alterne apports, démonstrations et mises en pratique. L'assiduité est attestée par un
+            émargement signé par chaque participant et par le formateur à chaque demi-journée. Les acquis sont
+            évalués en cours et en fin de formation. Un certificat de réalisation est remis à l'issue de l'action.
+        </p>
+    </div>
+
+    <div class="insecable">
+        <h2>Article 5 - Prix et règlement</h2>
+        <table class="prix">
+            <tr><td>Prix de la formation, hors taxes</td><td class="montant">{{ s.prix(montantHT) }}</td></tr>
+            {% if organisme.tauxTva > 0 %}
+                <tr>
+                    <td>TVA ({{ organisme.tauxTva|number_format(organisme.tauxTva == organisme.tauxTva|round ? 0 : 1, ',', '') }} %)</td>
+                    <td class="montant">{{ s.prix(montantTva) }}</td>
+                </tr>
+                <tr class="total"><td>Total toutes taxes comprises</td><td class="montant">{{ s.prix(montantTTC) }}</td></tr>
+            {% else %}
+                <tr class="total"><td>Total net de taxes</td><td class="montant">{{ s.prix(montantHT) }}</td></tr>
+            {% endif %}
+        </table>
+        {% if organisme.tauxTva == 0 %}
+            <p class="petit muet" style="margin-top: 1.5mm;">TVA non applicable, article 261-4-4° a du Code général des impôts.</p>
+        {% endif %}
+        {% if organisme.conditionsReglement %}
+            <p style="margin-top: 2mm;">{{ organisme.conditionsReglement|nl2br }}</p>
+        {% endif %}
+    </div>
+
+    <div class="insecable">
+        <h2>Article 6 - Inexécution, annulation et report</h2>
+        <p>
+            En application de l'article L. 6354-1 du Code du travail, en cas d'inexécution totale ou partielle
+            de la prestation de formation, l'organisme rembourse au client les sommes indûment perçues de ce fait.
+        </p>
+        {% if organisme.conditionsAnnulation %}
+            <p>{{ organisme.conditionsAnnulation|nl2br }}</p>
+        {% endif %}
+    </div>
+
+    <div class="insecable">
+        <h2>Article 7 - Différends</h2>
+        <p>
+            Si une contestation ou un différend ne peut être réglé à l'amiable, il sera porté devant le tribunal
+            compétent.
+        </p>
+    </div>
+
+    {# Page des signatures : le tableau d'abord, à dimensions fixes (voir en tête de fichier). #}
+    <table class="signatures saut">
+        <tr>
+            <td class="qui">Pour l'organisme, {{ organisme.representantNom }}</td>
+            <td class="qui">Pour le client{% if client.contactNom %}, {{ client.contactNom }}{% endif %}</td>
+        </tr>
+        <tr>
+            <td class="cadre">{% if organisme.signature %}<img src="{{ organisme.signature }}" alt="Signature">{% endif %}</td>
+            <td class="cadre"></td>
+        </tr>
+    </table>
+
+    <p style="margin-top: 5mm;">
+        Convention relative à la formation « {{ fiche.nom }} », session {{ session.reference }}, entre {{ organisme.nom }}
+        et {{ client.nom }}.
+    </p>
+    <p>Fait{% if organisme.ville %} à {{ organisme.ville }}{% endif %}, le {{ s.jour(editeLe) }}, en deux exemplaires.</p>
+
+{% endblock %}

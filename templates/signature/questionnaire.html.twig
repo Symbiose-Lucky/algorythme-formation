@@ -1,0 +1,89 @@
+{% extends 'signature/base.html.twig' %}
+
+{% block title %}{{ type.titre }}{% endblock %}
+
+{% block contenu %}
+
+    <section class="adm-carte">
+        <div class="adm-carte__corps">
+            <p class="adm-signer__sur-titre">{{ session.formation.nom }} · session {{ session.reference }}</p>
+            <h1 class="adm-signer__titre">{{ type.titre }}</h1>
+            <p class="adm-signer__qui">{{ personne }}</p>
+        </div>
+    </section>
+
+    {% if evaluation %}
+
+        <p class="adm-alerte adm-alerte--succes" role="status">
+            Vous avez répondu le {{ evaluation.horodatage|date('d/m/Y à H:i', 'Europe/Paris') }}. Merci.
+        </p>
+
+        <section class="adm-carte">
+            <header class="adm-carte__tete"><h2>Vos réponses</h2></header>
+            {{ include('evaluation/_reponses.html.twig', { reponses: evaluation.reponses }) }}
+        </section>
+
+    {% elseif not ouvert %}
+
+        <p class="adm-alerte adm-alerte--attention" role="status">Ce questionnaire n'est pas ouvert pour le moment.</p>
+
+    {% else %}
+
+        <form method="post" class="adm-questionnaire" data-turbo="false">
+
+            {% if erreur %}
+                <p class="adm-alerte" role="alert">{{ erreur }}</p>
+            {% endif %}
+
+            {% set rubrique = '' %}
+            {% for question in questions %}
+                {% if question.rubrique != rubrique %}
+                    {% if not loop.first %}</section>{% endif %}
+                    {% set rubrique = question.rubrique %}
+                    <section class="adm-carte">
+                    <header class="adm-carte__tete"><h2>{{ rubrique }}</h2></header>
+                {% endif %}
+
+                {% set donnee = (saisie[question.cle] ?? '') ~ '' %}
+                <fieldset class="adm-question">
+                    <legend>
+                        {{ question.question }}
+                        {% if question.genre == 'texte' %}<span>facultatif</span>{% endif %}
+                    </legend>
+                    {% if question.genre == 'texte' %}
+                        <textarea name="r[{{ question.cle }}]" rows="3" maxlength="2000"
+                                  aria-label="{{ question.question }}">{{ donnee }}</textarea>
+                    {% else %}
+                        <div class="adm-question__options">
+                            {% for valeur, libelle in question.options %}
+                                <label>
+                                    <input type="radio" name="r[{{ question.cle }}]" value="{{ valeur }}" required
+                                           {{ donnee == valeur ~ '' ? 'checked' }}>
+                                    <span>{{ libelle }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </fieldset>
+
+                {% if loop.last %}</section>{% endif %}
+            {% endfor %}
+
+            <div class="adm-signer__actions">
+                {% if retour %}<a href="{{ retour }}" class="adm-bouton adm-bouton--discret">Plus tard</a>{% else %}<span></span>{% endif %}
+                <button type="submit" class="adm-bouton adm-bouton--principal">Envoyer mes réponses</button>
+            </div>
+
+            <p class="adm-champ__aide">
+                Vos réponses sont nominatives et ne peuvent plus être modifiées une fois envoyées. Elles servent
+                à adapter la formation et à en améliorer la qualité.
+            </p>
+        </form>
+
+    {% endif %}
+
+    {% if retour and (evaluation or not ouvert) %}
+        <p><a href="{{ retour }}">← Retour à ma feuille de présence</a></p>
+    {% endif %}
+
+{% endblock %}

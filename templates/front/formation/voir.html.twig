@@ -8,7 +8,7 @@
 {% block meta_description %}{{ description }}{% endblock %}
 
 {# Données structurées : la formation (schéma Course) et le fil d'ariane.
-   La durée en jours devient une durée ISO 8601 (P2D) quand SmartOF la donne. #}
+   La durée en jours devient une durée ISO 8601 (P2D) quand elle tombe sur des journées entières. #}
 {% block head_extra %}
     {% set urlFiche = APP_URL ~ path('app_formation_voir', { slug: formation.slug }) %}
     {% set jours = formation.dureeJours ? formation.dureeJours|split(' ')|first : '' %}
@@ -57,12 +57,12 @@
 
 {% block body %}
 
-    {# `formation` vient de SmartOF (CatalogueFormations::fiche). Les textes
-       qui ne dépendent pas de la formation (socle, accessibilité, contacts)
-       sont écrits ici : SmartOF ne les porte pas. #}
+    {# `formation` vient de l'admin (CatalogueFormations::fiche). Les textes
+       communs à toutes les formations (socle, contacts, et les modalités
+       laissées vides sur la fiche) sont écrits ici. #}
 
-    {# Ce que SmartOF ne porte pas non plus : le nom public d'une formule de
-       session et ce qu'elle recouvre. La clé est celle du tarif SmartOF. #}
+    {# Le nom public d'une formule de session et ce qu'elle recouvre. La clé
+       est la formule du tarif (CatalogueFormations::tarifs). #}
     {% set libelles = {
         inter: {
             nom: 'Inter-entreprises',
@@ -74,7 +74,7 @@
         }
     } %}
 
-    {# Le choix de formule n'a de sens que si SmartOF en distingue plusieurs. #}
+    {# Le choix de formule n'a de sens que si la formation a les deux tarifs. #}
     {% set formules = formation.tarifs|filter(tarif => tarif.formule is not null) %}
     {% set choixFormule = formules|length > 1 %}
 
@@ -119,7 +119,7 @@
                 <div>
                     <dt>Modalité</dt>
                     {# Modalité et effectif valent pour toutes nos formations :
-                       SmartOF ne les porte pas. #}
+                       ils sont écrits ici. #}
                     <dd>Présentiel, distanciel ou les deux</dd>
                 </div>
                 <div>
@@ -329,7 +329,7 @@
             {# ------------------------------------------------- Questions #}
             {# Questions communes à toutes les formations : elles portent sur
                notre façon de travailler, pas sur un programme en particulier.
-               SmartOF ne les porte pas, elles sont écrites ici. #}
+               Elles sont écrites ici. #}
             <section class="fo-bloc" id="questions">
                 <h2>Questions fréquentes</h2>
 
@@ -488,8 +488,7 @@
                             <div class="fo-fiche__large">
                                 <dt>Tarif</dt>
                                 <dd>
-                                    {# Une carte par formule de session. `formule` vient de
-                                       l'intitulé du tarif SmartOF (INTER / INTRA) ; les textes
+                                    {# Une carte par formule de session (inter, intra) ; les textes
                                        qui l'expliquent sont écrits ici. #}
                                     <ul class="fo-formules">
                                         {% for tarif in formation.tarifs %}
@@ -518,9 +517,13 @@
                         <div>
                             <dt>Accessibilité et handicap</dt>
                             <dd>
-                                Nos actions de formation sont ouvertes aux personnes en situation de
-                                handicap, avec une adaptation au cas par cas des modalités, des supports
-                                et du rythme.
+                                {% if formation.accessibilite %}
+                                    {{ include('front/formation/_liste.html.twig', { items: formation.accessibilite }) }}
+                                {% else %}
+                                    Nos actions de formation sont ouvertes aux personnes en situation de
+                                    handicap, avec une adaptation au cas par cas des modalités, des supports
+                                    et du rythme.
+                                {% endif %}
                                 <br>Référent handicap : Mathieu Piron-Lafleur,
                                 <a href="mailto:contact@algorythme-formation.fr">contact@algorythme-formation.fr</a>.
                             </dd>

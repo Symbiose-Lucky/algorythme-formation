@@ -1,0 +1,100 @@
+{% extends 'pdf/base.html.twig' %}
+
+{# Attestation de fin de formation d'un participant (article L. 6353-1 du
+   Code du travail) : objectifs, nature, durée de l'action, et résultats
+   de l'évaluation des acquis telle que le formateur l'a renseignée
+   (DocumentsGeneres::attestations). #}
+
+{% import 'pdf/_session.html.twig' as s %}
+
+{% block titre %}Attestation de fin de formation - {{ participant.prenom }} {{ participant.nom }}{% endblock %}
+
+{% block styles %}
+    <style>
+        .attestation p { margin-bottom: 2.5mm; line-height: 1.45; }
+        h2 { margin-top: 4mm; }
+        .entete { margin-bottom: 5mm; }
+        .faits td { padding: 0.8mm 0; }
+        .acquis th, .acquis td { padding: 0.6mm 3mm; border: 0.5pt solid #CBD3D9; }
+        .acquis th { background: #F3F5F7; font-size: 8.5pt; }
+        .acquis td.resultat { width: 46mm; font-weight: bold; }
+        .signature { width: 85mm; margin-top: 2mm; margin-left: 85mm; }
+        .signature td { border: 0.5pt solid #CBD3D9; }
+        .signature td.qui { padding: 1.5mm 4mm; }
+        .signature td.cadre { height: 15mm; padding: 1mm 4mm; vertical-align: middle; text-align: center; }
+        .signature img { max-width: 70mm; max-height: 13mm; }
+    </style>
+{% endblock %}
+
+{% block contenu %}
+
+    <h1 class="centre" style="margin: 0 0 4mm;">Attestation de fin de formation</h1>
+
+    <div class="attestation">
+        <p>
+            Je soussigné {{ organisme.representantNom }}, {{ organisme.representantQualite|lower }} de l'organisme de
+            formation <strong>{{ organisme.nom }}</strong>, atteste que
+            <strong>{{ participant.prenom }} {{ participant.nom }}</strong>
+            {%- if client %}, de l'entreprise <strong>{{ client.nom }}</strong>{% endif %},
+            a suivi l'action de formation <strong>« {{ fiche.nom }} »</strong>.
+        </p>
+
+        <table class="faits">
+            <tr><td class="libelle">Nature de l'action</td><td>Action de formation (article L. 6313-1 du Code du travail)</td></tr>
+            <tr>
+                <td class="libelle">Dates</td>
+                <td>
+                    {% if premierJour == dernierJour %}
+                        Le {{ s.jour(premierJour) }}
+                    {% else %}
+                        Du {{ s.jour(premierJour) }} au {{ s.jour(dernierJour) }}
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td class="libelle">Durée suivie</td>
+                <td>{{ s.heures(heures) }}{% if prevues and prevues != heures %} sur {{ s.heures(prevues) }} prévues{% endif %}</td>
+            </tr>
+            <tr><td class="libelle">Modalité</td><td>{{ session.modalite.libelle }}</td></tr>
+            {% if session.formateurs is not empty %}
+                <tr>
+                    <td class="libelle">Formateur{{ session.formateurs|length > 1 ? 's' }}</td>
+                    <td>{% for formateur in session.formateurs %}{{ formateur.libelle }}{{ not loop.last ? ', ' }}{% endfor %}</td>
+                </tr>
+            {% endif %}
+        </table>
+    </div>
+
+    <h2>Résultats de l'évaluation des acquis</h2>
+    <table class="acquis">
+        <tr>
+            <th>Objectifs de la formation</th>
+            <th>Résultat</th>
+        </tr>
+        {% for reponse in acquis %}
+            <tr class="insecable">
+                <td>{{ reponse.question }}</td>
+                <td class="resultat">{{ reponse.libelle }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+    {% if commentaire %}
+        <p style="margin-top: 2mm;"><span class="muet">Commentaire du formateur :</span> {{ commentaire|nl2br }}</p>
+    {% endif %}
+    <p class="muet petit" style="margin-top: 2mm;">
+        Session {{ session.reference }} · évaluation des acquis {{ evaluePar ? 'réalisée par ' ~ evaluePar : 'enregistrée' }}
+        le {{ s.jour(evalueLe) }} · durée établie d'après les émargements.
+    </p>
+
+    <table class="signature insecable">
+        <tr>
+            <td class="qui">
+                Fait{% if organisme.ville %} à {{ organisme.ville }}{% endif %}, le {{ s.jour(editeLe) }}<br>
+                {{ organisme.representantNom }}, {{ organisme.representantQualite|lower }}
+            </td>
+        </tr>
+        <tr><td class="cadre">{% if organisme.signature %}<img src="{{ organisme.signature }}" alt="Signature">{% endif %}</td></tr>
+    </table>
+
+
+{% endblock %}

@@ -1,0 +1,70 @@
+{# Carte « Documents » de la fiche d'un objet (session, formation,
+   formateur, client, participant). Rendue par DocumentController::carte :
+   {{ render(controller('App\\Controller\\Admin\\DocumentController::carte', { type: 'session', id: session.id })) }} #}
+<section class="adm-carte" id="documents">
+    <header class="adm-carte__tete">
+        <h2>Documents</h2>
+        <p class="adm-carte__compte">{{ documents|length }}</p>
+        {% if type == 'session' %}
+            <a href="{{ path('app_admin_generation', { id: id }) }}" class="adm-bouton adm-bouton--discret">
+                Générer un document
+            </a>
+        {% endif %}
+    </header>
+
+    <form method="post" action="{{ path('app_admin_document_deposer') }}" enctype="multipart/form-data" class="adm-ajout">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
+        <input type="hidden" name="type" value="{{ type }}">
+        <input type="hidden" name="id" value="{{ id }}">
+
+        <label for="fichier-{{ type }}" class="adm-sr">Fichier à déposer</label>
+        <input type="file" id="fichier-{{ type }}" name="fichier" required
+               accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,application/pdf,image/png,image/jpeg">
+
+        <label for="categorie-{{ type }}" class="adm-sr">Nature du document</label>
+        <select id="categorie-{{ type }}" name="categorie">
+            {% for categorie in categories %}
+                <option value="{{ categorie.value }}" {{ categorie.value == 'autre' ? 'selected' }}>{{ categorie.libelle }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="nom-{{ type }}" class="adm-sr">Nom du document</label>
+        <input type="text" id="nom-{{ type }}" name="nom" maxlength="200" placeholder="Nom (par défaut, celui du fichier)">
+
+        <button type="submit" class="adm-bouton adm-bouton--principal">Déposer</button>
+    </form>
+
+    {% if documents is empty %}
+        <p class="adm-vide">Aucun document pour l'instant. PDF, image, Word ou Excel, 20 Mo au plus.</p>
+    {% else %}
+        <div class="adm-table-zone">
+            <table class="adm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Document</th>
+                        <th scope="col">Nature</th>
+                        <th scope="col">Déposé le</th>
+                        <th scope="col">Signature</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for document in documents %}
+                        <tr class="{{ document.archive ? 'adm-table__inactif' }}">
+                            <td>
+                                <a href="{{ path('app_admin_document_voir', { id: document.id }) }}"
+                                   class="adm-table__titre">{{ document.nom }}</a>
+                                {% if document.archive %}<span class="adm-etiquette">Archivé</span>{% endif %}
+                            </td>
+                            <td>{{ document.categorie.libelle }}</td>
+                            <td class="adm-table__date">
+                                {{ document.deposeLe|date('d/m/Y', 'Europe/Paris') }}
+                                <span>{{ document.tailleLisible }}</span>
+                            </td>
+                            <td>{{ include('admin/document/_etat.html.twig', { etat: document.etatSignature }) }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</section>

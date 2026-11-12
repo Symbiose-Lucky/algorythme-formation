@@ -1,0 +1,58 @@
+{# Thème des formulaires de l'admin : un champ = un bloc .adm-champ
+   (libellé, saisie, aide, erreur). Remplace le thème Bootstrap du site :
+   à appliquer avec `{% form_theme form with 'admin/_form_theme.html.twig' only %}`. #}
+{% use 'form_div_layout.html.twig' %}
+
+{% block form_row -%}
+    {%- set widget_attr = {} -%}
+    {%- if help is not empty -%}
+        {%- set widget_attr = {attr: {'aria-describedby': id ~ '_help'}} -%}
+    {%- endif -%}
+    <div class="adm-champ{{ errors|length ? ' adm-champ--erreur' }}">
+        {{- form_label(form) -}}
+        {{- form_widget(form, widget_attr) -}}
+        {{- form_errors(form) -}}
+        {{- form_help(form) -}}
+    </div>
+{%- endblock form_row %}
+
+{# Case à cocher : la case d'abord, son libellé à côté. #}
+{% block checkbox_row -%}
+    <div class="adm-champ adm-champ--case">
+        {{- form_widget(form) -}}
+        {{- form_label(form) -}}
+        {{- form_errors(form) -}}
+        {{- form_help(form) -}}
+    </div>
+{%- endblock checkbox_row %}
+
+{# Choix multiples : une case par option, son libellé à côté. #}
+{% block choice_widget_expanded -%}
+    <div {{ block('widget_container_attributes') }}>
+        {%- for child in form %}
+            <label class="adm-case">{{ form_widget(child) }} {{ child.vars.label }}</label>
+        {%- else -%}
+            <p class="adm-muet">Aucun choix disponible pour l'instant.</p>
+        {%- endfor -%}
+    </div>
+{%- endblock choice_widget_expanded %}
+
+{# Montant : la devise suit le champ, hors de la zone de saisie. #}
+{% block money_widget -%}
+    <span class="adm-champ__montant">
+        {{- block('form_widget_simple') -}}
+        <span aria-hidden="true">€</span>
+    </span>
+{%- endblock money_widget %}
+
+{% block form_errors -%}
+    {%- for error in errors -%}
+        <p class="adm-champ__erreur" role="alert">{{ error.message }}</p>
+    {%- endfor -%}
+{%- endblock form_errors %}
+
+{% block form_help -%}
+    {%- if help is not empty -%}
+        <p id="{{ id }}_help" class="adm-champ__aide">{{ help }}</p>
+    {%- endif -%}
+{%- endblock form_help %}

@@ -1,0 +1,59 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}{{ evaluation.type.libelle }} · {{ evaluation.sujet }}{% endblock %}
+
+{% block titre_page %}{{ evaluation.type.libelle }} · {{ evaluation.sujet }}{% endblock %}
+
+{% block sous_titre %}
+    <p class="adm-entete__sous-titre">
+        <a href="{{ path('app_admin_evaluation', { id: session.id }) }}">← Évaluations de la session {{ session.reference }}</a>
+        · {{ session.formation.nom }}
+    </p>
+{% endblock %}
+
+{% block contenu %}
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete"><h2>Preuve</h2></header>
+        <div class="adm-carte__corps adm-grille">
+            <div class="adm-detail">
+                <h3>{{ evaluation.type.estQuestionnaire ? 'Répondu par' : 'Évalué par' }}</h3>
+                <p>
+                    {{ evaluation.auteur }}
+                    {% if not evaluation.type.estQuestionnaire %}
+                        <span class="adm-muet">
+                            {{ evaluation.formateur ? '(formateur, depuis son lien personnel)' : '(saisie dans l\'administration)' }}
+                        </span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="adm-detail">
+                <h3>Date</h3>
+                <p>{{ evaluation.horodatage|date('d/m/Y à H:i:s', 'Europe/Paris') }}</p>
+            </div>
+            <div class="adm-detail">
+                <h3>Adresse de connexion</h3>
+                <p>{{ evaluation.ip ?: '—' }}</p>
+            </div>
+            <div class="adm-detail">
+                <h3>Navigateur</h3>
+                <p class="adm-detail__texte">{{ evaluation.navigateur ?: '—' }}</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete">
+            <h2>Réponses</h2>
+            <p class="adm-carte__compte">
+                {% if evaluation.type.estQuestionnaire %}
+                    Telles qu'elles ont été envoyées : elles ne se modifient pas.
+                {% else %}
+                    Dernière version ; les corrections figurent au journal de la session.
+                {% endif %}
+            </p>
+        </header>
+        {{ include('evaluation/_reponses.html.twig', { reponses: evaluation.reponses }) }}
+    </section>
+
+{% endblock %}

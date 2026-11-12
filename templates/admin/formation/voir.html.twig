@@ -1,0 +1,181 @@
+{% extends 'admin/base.html.twig' %}
+
+{% import 'admin/formation/_formats.html.twig' as formats %}
+{% import 'admin/session/_formats.html.twig' as formatsSession %}
+
+{% block title %}{{ formation.nom }}{% endblock %}
+
+{% block titre_page %}
+    {{ formation.nom }}
+    {{ include('admin/formation/_statut.html.twig', { statut: formation.statut }) }}
+{% endblock %}
+
+{% block sous_titre %}
+    <p class="adm-entete__sous-titre">
+        <a href="{{ path('app_admin_formation') }}">← Formations</a>
+        · {{ formation.code }}
+        · version {{ formation.version }} du {{ formation.modifieLe|date('d/m/Y', 'Europe/Paris') }}
+    </p>
+{% endblock %}
+
+{% block actions %}
+    <a href="{{ path('app_admin_formation_modifier', { id: formation.id }) }}"
+       class="adm-bouton adm-bouton--principal">Modifier</a>
+{% endblock %}
+
+{# Un texte long de la fiche, ou un tiret s'il est vide. #}
+{% macro texte(libelle, valeur) %}
+    <div class="adm-detail">
+        <h3>{{ libelle }}</h3>
+        {% if valeur %}
+            <p class="adm-detail__texte">{{ valeur }}</p>
+        {% else %}
+            <p class="adm-muet">Non renseigné</p>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{% block contenu %}
+
+    <section class="adm-stats" aria-label="En bref">
+        <div class="adm-stat">
+            <p class="adm-stat__libelle">Durée</p>
+            <p class="adm-stat__valeur">
+                {{ formats.heures(formation.dureeHeures) }}
+            </p>
+        </div>
+        <div class="adm-stat">
+            <p class="adm-stat__libelle">Tarif inter HT</p>
+            <p class="adm-stat__valeur">
+                {{ formats.prix(formation.tarifInterHT) }}
+            </p>
+        </div>
+        <div class="adm-stat">
+            <p class="adm-stat__libelle">Tarif intra HT</p>
+            <p class="adm-stat__valeur">
+                {{ formats.prix(formation.tarifIntraHT) }}
+            </p>
+        </div>
+        <div class="adm-stat">
+            <p class="adm-stat__libelle">Domaine</p>
+            <p class="adm-stat__valeur adm-stat__valeur--texte">{{ formation.domaine ?: '—' }}</p>
+        </div>
+    </section>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete"><h2>Programme</h2></header>
+        <div class="adm-carte__corps adm-grille">
+            <div class="adm-grille__large">{{ _self.texte('Accroche', formation.accroche) }}</div>
+            <div class="adm-grille__large">{{ _self.texte('Objectifs', formation.objectifs) }}</div>
+            {{ _self.texte('Public visé', formation.publicVise) }}
+            {{ _self.texte('Prérequis', formation.prerequis) }}
+            <div class="adm-grille__large">{{ _self.texte('Programme', formation.programme) }}</div>
+            <div class="adm-grille__large">{{ _self.texte('Ce que ça change, concrètement', formation.ceQuiChange) }}</div>
+        </div>
+    </section>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete"><h2>Modalités</h2></header>
+        <div class="adm-carte__corps adm-grille">
+            {{ _self.texte('Méthodes pédagogiques', formation.methodes) }}
+            {{ _self.texte('Moyens et supports', formation.moyens) }}
+            {{ _self.texte("Modalités d'évaluation et de suivi", formation.evaluation) }}
+            {{ _self.texte("Modalités et délais d'accès", formation.acces) }}
+            {{ _self.texte('Accessibilité aux personnes en situation de handicap', formation.accessibilite) }}
+            {{ _self.texte('Profil des formateurs', formation.profilFormateurs) }}
+            {{ _self.texte('Lieu', formation.lieu) }}
+            {{ _self.texte('Adresse de la page', formation.slug) }}
+        </div>
+    </section>
+
+    <section class="adm-carte" id="sessions">
+        <header class="adm-carte__tete">
+            <h2>Sessions</h2>
+            <p class="adm-carte__compte">{{ sessions|length }} session{{ sessions|length > 1 ? 's' }}</p>
+            {% if formation.statut.value != 'archivee' %}
+                <a href="{{ path('app_admin_session_nouvelle', { formation: formation.id }) }}"
+                   class="adm-bouton adm-bouton--discret">Planifier une session</a>
+            {% endif %}
+        </header>
+        {% if sessions is empty %}
+            <p class="adm-vide">Aucune session pour cette formation.</p>
+        {% else %}
+            <div class="adm-table-zone">
+                <table class="adm-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Session</th>
+                            <th scope="col">Dates</th>
+                            <th scope="col">Formule</th>
+                            <th scope="col">Programme</th>
+                            <th scope="col">Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for session in sessions %}
+                            <tr>
+                                <td class="adm-table__court">
+                                    <a href="{{ path('app_admin_session_voir', { id: session.id }) }}"
+                                       class="adm-table__titre">{{ session.reference }}</a>
+                                </td>
+                                <td class="adm-table__court">{{ formatsSession.dates(session) }}</td>
+                                <td>{{ session.formule.libelle }}</td>
+                                <td>Version {{ session.programme.numero }}</td>
+                                <td>{{ formatsSession.statut(session.statut) }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </section>
+
+    {{ render(controller('App\\Controller\\Admin\\DocumentController::carte', { type: 'formation', id: formation.id })) }}
+
+    <section class="adm-carte" id="historique">
+        <header class="adm-carte__tete">
+            <h2>Historique</h2>
+            <p class="adm-carte__compte">
+                {{ versions|length }} version{{ versions|length > 1 ? 's' }} · créée le {{ formation.creeLe|date('d/m/Y', 'Europe/Paris') }}
+            </p>
+        </header>
+        <div class="adm-table-zone">
+            <table class="adm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Version</th>
+                        <th scope="col">Date</th>
+                        <th scope="col">Auteur</th>
+                        <th scope="col">Champs modifiés</th>
+                        <th scope="col">Raison</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for version in versions %}
+                        <tr>
+                            <td class="adm-table__court">
+                                <a href="{{ path('app_admin_formation_version', { id: formation.id, numero: version.numero }) }}">
+                                    Version {{ version.numero }}
+                                </a>
+                            </td>
+                            <td class="adm-table__date">
+                                {{ version.creeLe|date('d/m/Y', 'Europe/Paris') }}
+                                <span>{{ version.creeLe|date('H:i', 'Europe/Paris') }}</span>
+                            </td>
+                            <td>{{ version.auteurEmail ?: '—' }}</td>
+                            <td>
+                                {% if version.modifications is empty %}
+                                    <span class="adm-muet">Première version</span>
+                                {% else %}
+                                    {{ version.libellesModifications|join(', ') }}
+                                {% endif %}
+                            </td>
+                            <td>{{ version.motif ?: '—' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+{% endblock %}

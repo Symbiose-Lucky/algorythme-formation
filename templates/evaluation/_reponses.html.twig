@@ -1,0 +1,18 @@
+{# Les réponses d'un questionnaire, telles qu'elles ont été conservées :
+   l'énoncé posé, puis la réponse donnée. #}
+<dl class="adm-reponses">
+    {% for reponse in reponses %}
+        <div>
+            <dt>{{ reponse.question }}</dt>
+            <dd>
+                {% if reponse.genre == 'texte' %}
+                    {% if reponse.valeur %}{{ reponse.valeur|nl2br }}{% else %}<span class="adm-muet">Sans réponse</span>{% endif %}
+                {% elseif reponse.genre in ['niveau', 'note'] %}
+                    {{ reponse.valeur }} / {{ reponse.genre == 'niveau' ? 4 : 5 }} · {{ reponse.libelle }}
+                {% else %}
+                    {{ reponse.libelle }}
+                {% endif %}
+            </dd>
+        </div>
+    {% endfor %}
+</dl>

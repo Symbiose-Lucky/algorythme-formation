@@ -1,0 +1,39 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Acquis {{ session.reference }}{% endblock %}
+
+{% block titre_page %}Évaluation des acquis · session {{ session.reference }}{% endblock %}
+
+{% block sous_titre %}
+    <p class="adm-entete__sous-titre">
+        <a href="{{ path('app_admin_evaluation', { id: session.id }) }}">← Évaluations de la session {{ session.reference }}</a>
+        · {{ session.formation.nom }}
+    </p>
+{% endblock %}
+
+{% block contenu %}
+
+    {% if not ouvert %}
+        <p class="adm-alerte adm-alerte--attention" role="status">
+            Les acquis s'évaluent à partir de la dernière séance de la session.
+        </p>
+    {% else %}
+        <p class="adm-entete__sous-titre adm-generation__note">
+            À utiliser quand le formateur vous a transmis son évaluation autrement que par son lien personnel.
+            La saisie est enregistrée à votre nom ; chaque correction est consignée au journal de la session.
+        </p>
+
+        <form method="post" class="adm-questionnaire">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
+
+            {{ include('evaluation/_acquis.html.twig') }}
+
+            {% if session.inscrits %}
+                <div class="adm-questionnaire__valider">
+                    <button type="submit" class="adm-bouton adm-bouton--principal">Enregistrer l'évaluation</button>
+                </div>
+            {% endif %}
+        </form>
+    {% endif %}
+
+{% endblock %}

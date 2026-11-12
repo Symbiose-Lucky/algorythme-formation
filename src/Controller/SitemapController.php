@@ -10,7 +10,7 @@ use Throwable;
 
 /**
  * Plan du site pour les moteurs de recherche : les pages fixes et une
- * entrée par formation publiée dans SmartOF. Déclaré dans robots.txt.
+ * entrée par formation publiée. Déclaré dans robots.txt.
  *
  * Les adresses sont absolues et construites sur APP_URL, pas sur la
  * requête : derrière un reverse proxy, l'hôte vu par PHP n'est pas
@@ -54,7 +54,7 @@ class SitemapController extends AbstractController
                 ];
             }
         } catch (Throwable) {
-            // SmartOF injoignable : les pages fixes suffisent, le plan reste valide.
+            // Catalogue illisible (base injoignable) : les pages fixes suffisent, le plan reste valide.
         }
 
         $response = $this->render('sitemap.xml.twig', ['entrees' => $entrees]);

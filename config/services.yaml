@@ -9,6 +9,8 @@
 parameters:
     app_nom_of: '%env(APP_NOM_OF)%'
     app_url: '%env(APP_URL)%'
+    # Où sont rangés les fichiers déposés dans l'admin : hors du dossier public.
+    app_dossier_documents: '%env(resolve:APP_DOSSIER_DOCUMENTS)%'
 
 services:
     # default configuration for services in *this* file

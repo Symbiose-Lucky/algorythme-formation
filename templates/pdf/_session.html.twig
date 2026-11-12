@@ -1,0 +1,58 @@
+{# Morceaux communs aux documents d'une session. #}
+
+{# « du 3 au 5 décembre 2026 » : les dates de la session, en toutes lettres. #}
+{% macro dates(session) -%}
+    {%- set mois = ['', 'janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'] -%}
+    {%- set debut = session.dateDebut -%}
+    {%- set fin = session.dateFin -%}
+    {%- if debut is null -%}
+        dates à préciser
+    {%- elseif debut == fin -%}
+        le {{ debut|date('j') }} {{ mois[debut|date('n')] }} {{ debut|date('Y') }}
+    {%- else -%}
+        du {{ debut|date('j') }}{% if debut|date('n') != fin|date('n') or debut|date('Y') != fin|date('Y') %} {{ mois[debut|date('n')] }}{% endif %}{% if debut|date('Y') != fin|date('Y') %} {{ debut|date('Y') }}{% endif %}
+        au {{ fin|date('j') }} {{ mois[fin|date('n')] }} {{ fin|date('Y') }}
+    {%- endif -%}
+{%- endmacro %}
+
+{# Une date en toutes lettres : « 11 novembre 2026 ». #}
+{% macro jour(date) -%}
+    {%- set mois = ['', 'janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'] -%}
+    {{ date|date('j') }} {{ mois[date|date('n')] }} {{ date|date('Y') }}
+{%- endmacro %}
+
+{# Un nombre d'heures : « 21 heures », « 3,5 heures ». #}
+{% macro heures(heures) -%}
+    {{ heures|number_format(heures == heures|round ? 0 : 1, ',', ' ') }} heure{{ heures >= 2 ? 's' }}
+{%- endmacro %}
+
+{# Un montant en centimes : « 2 250,00 € ». #}
+{% macro prix(centimes) -%}
+    {{ (centimes / 100)|number_format(2, ',', ' ') }} €
+{%- endmacro %}
+
+{# Le calendrier : une ligne par séance. #}
+{% macro seances(session) %}
+    {% set jours = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'] %}
+    <table class="faits">
+        {% for seance in session.seancesTriees %}
+            <tr>
+                <td class="libelle">{{ jours[seance.jour|date('w')] }} {{ seance.jour|date('d/m/Y') }}</td>
+                <td>de {{ seance.debut|date('H\\hi') }} à {{ seance.fin|date('H\\hi') }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+{% endmacro %}
+
+{# Une liste à puces, ou rien si elle est vide. #}
+{% macro liste(elements) %}
+    {% if elements|length == 1 %}
+        <p>{{ elements|first }}</p>
+    {% elseif elements %}
+        <ul>
+            {% for element in elements %}
+                <li>{{ element }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+{% endmacro %}

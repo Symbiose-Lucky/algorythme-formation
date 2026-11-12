@@ -1,0 +1,47 @@
+{% extends 'signature/base.html.twig' %}
+
+{% block title %}Évaluation des acquis{% endblock %}
+
+{% block contenu %}
+
+    <section class="adm-carte">
+        <div class="adm-carte__corps">
+            <p class="adm-signer__sur-titre">{{ session.formation.nom }} · session {{ session.reference }}</p>
+            <h1 class="adm-signer__titre">Évaluation des acquis</h1>
+            <p class="adm-signer__qui">{{ formateur.libelle }}, formateur</p>
+        </div>
+    </section>
+
+    {% if not ouvert %}
+
+        <p class="adm-alerte adm-alerte--attention" role="status">
+            Les acquis s'évaluent à partir de la dernière séance
+            {%- if ouvreLe %}, le {{ ouvreLe|date('d/m/Y à H:i') }}{% endif %}.
+        </p>
+        <p><a href="{{ retour }}">← Retour à ma feuille de présence</a></p>
+
+    {% else %}
+
+        <form method="post" class="adm-questionnaire" data-turbo="false">
+
+            {% if erreur %}
+                <p class="adm-alerte" role="alert">{{ erreur }}</p>
+            {% endif %}
+
+            <p class="adm-champ__aide">
+                Pour chaque participant, indiquez ce qui est acquis à l'issue de la formation. Vous pouvez
+                enregistrer en plusieurs fois et corriger ensuite : chaque correction est conservée.
+                Le résultat figure sur l'attestation de fin de formation.
+            </p>
+
+            {{ include('evaluation/_acquis.html.twig') }}
+
+            <div class="adm-signer__actions">
+                <a href="{{ retour }}" class="adm-bouton adm-bouton--discret">Retour</a>
+                <button type="submit" class="adm-bouton adm-bouton--principal">Enregistrer l'évaluation</button>
+            </div>
+        </form>
+
+    {% endif %}
+
+{% endblock %}

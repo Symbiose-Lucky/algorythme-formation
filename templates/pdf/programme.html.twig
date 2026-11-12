@@ -1,0 +1,105 @@
+{% extends 'pdf/base.html.twig' %}
+
+{# Programme de la formation, tel que la session le dispense : la version
+   de la fiche retenue par la session, pas forcément la fiche actuelle.
+   Les modalités laissées vides sur la fiche reprennent les textes communs
+   à toutes nos formations (les mêmes que sur le site). #}
+
+{% import 'pdf/_session.html.twig' as s %}
+
+{% block titre %}Programme - {{ fiche.nom }}{% endblock %}
+
+{% block contenu %}
+
+    <h1>{{ fiche.nom }}</h1>
+    <p class="sous-titre">
+        Programme de formation
+        {% if fiche.dureeHeures %}· {{ s.heures(fiche.dureeHeures) }}{% endif %}
+        · {{ session.modalite.libelle|lower }}
+    </p>
+
+    {% if objectifs %}
+        <h2>Objectifs</h2>
+        <p>À l'issue de la formation, le participant sera capable de :</p>
+        {{ s.liste(objectifs) }}
+    {% endif %}
+
+    {% if publicVise %}
+        <h2>Public visé</h2>
+        {{ s.liste(publicVise) }}
+    {% endif %}
+
+    {% if prerequis %}
+        <h2>Prérequis</h2>
+        {{ s.liste(prerequis) }}
+    {% endif %}
+
+    {% if deroule %}
+        <h2>Contenu de la formation</h2>
+        {% for journee in deroule %}
+            {% if journee.titre %}
+                <h3>{{ journee.titre }}{% if journee.duree %} <span class="muet">({{ journee.duree }})</span>{% endif %}</h3>
+            {% endif %}
+            {% for sequence in journee.sequences %}
+                <div class="insecable">
+                    <p><strong>{{ sequence.titre }}</strong>{% if sequence.duree %} <span class="muet">· {{ sequence.duree }}</span>{% endif %}</p>
+                    {{ s.liste(sequence.points) }}
+                </div>
+            {% endfor %}
+        {% endfor %}
+    {% endif %}
+
+    <h2>Méthodes et moyens pédagogiques</h2>
+    {% if methodes or moyens %}
+        {{ s.liste(methodes) }}
+        {{ s.liste(moyens) }}
+    {% else %}
+        <p>Alternance d'apports, de démonstrations et de mises en pratique sur des cas concrets. Support de cours remis à chaque participant.</p>
+    {% endif %}
+
+    <div class="insecable">
+        <h2>Évaluation et suivi</h2>
+        {% if evaluation %}
+            {{ s.liste(evaluation) }}
+        {% else %}
+            <ul>
+                <li>À l'entrée : analyse du besoin, test de positionnement, auto-évaluation</li>
+                <li>En cours : exercice validé à chaque séquence, point d'étape à mi-parcours</li>
+                <li>En fin : mise en situation, auto-évaluation de sortie, certificat de réalisation</li>
+                <li>À distance : satisfaction à chaud, questionnaire à froid à 90 jours, bilan au commanditaire</li>
+            </ul>
+        {% endif %}
+        <p>La présence est attestée par un émargement à chaque demi-journée.</p>
+    </div>
+
+    <div class="insecable">
+        <h2>Modalités et délais d'accès</h2>
+        {% if acces %}
+            {{ s.liste(acces) }}
+        {% else %}
+            <p>
+                Prise de contact, puis entretien d'analyse du besoin de 30 minutes. Proposition et programme adaptés
+                sous 5 jours ouvrés. Entrée en formation sous 4 à 8 semaines après signature de la convention, et
+                3 semaines supplémentaires minimum en cas de dossier OPCO.
+            </p>
+        {% endif %}
+    </div>
+
+    <div class="insecable">
+        <h2>Accessibilité aux personnes en situation de handicap</h2>
+        {% if accessibilite %}
+            {{ s.liste(accessibilite) }}
+        {% else %}
+            <p>
+                Nos actions de formation sont ouvertes aux personnes en situation de handicap, avec une adaptation
+                au cas par cas des modalités, des supports et du rythme. Contact : {{ organisme.email }}.
+            </p>
+        {% endif %}
+    </div>
+
+    <p class="muet petit" style="margin-top: 6mm;">
+        Programme en vigueur depuis le {{ versionProgramme.creeLe|date('d/m/Y', 'Europe/Paris') }}
+        (version {{ versionProgramme.numero }}) · session {{ session.reference }}.
+    </p>
+
+{% endblock %}

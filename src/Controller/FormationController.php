@@ -3,15 +3,9 @@
 namespace App\Controller;
 
 use App\Service\CatalogueFormations;
-use Psr\Cache\InvalidArgumentException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 
 #[Route('/nos-formations', name: 'app_formation')]
 class FormationController extends AbstractController
@@ -23,10 +17,8 @@ class FormationController extends AbstractController
     }
 
     /**
-     * Catalogue : les formations publiées dans SmartOF, avec un filtre par
+     * Catalogue : les formations publiées dans l'admin, avec un filtre par
      * domaine (domaines triés par ordre alphabétique).
-     *
-     * @throws InvalidArgumentException
      */
     #[Route('', name: '')]
     public function index(): Response
@@ -38,15 +30,8 @@ class FormationController extends AbstractController
     }
 
     /**
-     * Fiche d'une formation. Une formation non publiée dans SmartOF n'a pas
-     * de page : son slug renvoie une 404.
-     *
-     * @throws TransportExceptionInterface
-     * @throws ServerExceptionInterface
-     * @throws InvalidArgumentException
-     * @throws RedirectionExceptionInterface
-     * @throws DecodingExceptionInterface
-     * @throws ClientExceptionInterface
+     * Fiche d'une formation. Une formation en brouillon ou archivée n'a pas
+     * de page : son adresse renvoie une 404.
      */
     #[Route('/{slug}', name: '_voir')]
     public function voir(string $slug): Response

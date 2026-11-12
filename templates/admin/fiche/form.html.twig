@@ -1,0 +1,59 @@
+{% extends 'admin/base.html.twig' %}
+
+{# Formulaire d'une fiche de gestion (formateur, client, participant) :
+   les champs dans l'ordre du formulaire, sur deux colonnes ; les zones de
+   texte, les cases et les choix multiples prennent toute la largeur. #}
+
+{% form_theme form with 'admin/_form_theme.html.twig' only %}
+
+{% set creation = fiche.id is null %}
+{% set retour = creation ? path(route) : path(route ~ '_voir', { id: fiche.id }) %}
+
+{% block title %}{{ creation ? libelles.nouveau : libelles.modifier }}{% endblock %}
+
+{% block titre_page %}{{ creation ? libelles.nouveau : libelles.modifier }}{% endblock %}
+
+{% block sous_titre %}
+    {% if not creation %}
+        <p class="adm-entete__sous-titre">{{ fiche.libelle }}</p>
+    {% endif %}
+{% endblock %}
+
+{% block contenu %}
+
+    {{ form_start(form, { attr: { class: 'adm-fiche', novalidate: 'novalidate' } }) }}
+
+    {% if not form.vars.valid %}
+        <p class="adm-alerte" role="alert">
+            La fiche n'a pas été enregistrée : certains champs sont à corriger.
+        </p>
+    {% endif %}
+    {{ form_errors(form) }}
+
+    <section class="adm-carte">
+        <div class="adm-carte__corps adm-grille">
+            {% for nom, champ in form %}
+                {% if nom not in ['motif', '_token'] %}
+                    {% set prefixes = champ.vars.block_prefixes %}
+                    {% set large = 'textarea' in prefixes or 'checkbox' in prefixes or (champ.vars.expanded ?? false) %}
+                    <div class="{{ large ? 'adm-grille__large' }}">{{ form_row(champ) }}</div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+
+    <div class="adm-fiche__actions">
+        {% if form.motif is defined %}
+            {{ form_row(form.motif) }}
+        {% endif %}
+        <div class="adm-fiche__boutons">
+            <a href="{{ retour }}" class="adm-bouton adm-bouton--discret">Annuler</a>
+            <button type="submit" class="adm-bouton adm-bouton--principal">
+                {{ creation ? 'Créer' : 'Enregistrer' }}
+            </button>
+        </div>
+    </div>
+
+    {{ form_end(form) }}
+
+{% endblock %}

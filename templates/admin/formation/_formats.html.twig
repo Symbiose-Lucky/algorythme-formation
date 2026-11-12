@@ -1,0 +1,19 @@
+{# Mise en forme des valeurs d'une formation dans l'admin. #}
+
+{# Un montant en centimes : « 2 250 € », « 850,50 € », ou un tiret. #}
+{% macro prix(centimes) -%}
+    {%- if centimes is null -%}
+        —
+    {%- else -%}
+        {{ (centimes / 100)|number_format(centimes % 100 == 0 ? 0 : 2, ',', ' ') }} €
+    {%- endif -%}
+{%- endmacro %}
+
+{# Une durée en heures : « 21 h », « 3,5 h », ou un tiret. #}
+{% macro heures(heures) -%}
+    {%- if not heures -%}
+        —
+    {%- else -%}
+        {{ heures|number_format(heures == heures|round ? 0 : 1, ',', ' ') }} h
+    {%- endif -%}
+{%- endmacro %}

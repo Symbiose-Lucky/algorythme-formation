@@ -1,0 +1,10 @@
+{# État de la signature d'un document. Attend `etat` (Document::etatSignature). #}
+{%- if etat == 'signe' -%}
+    <span class="adm-etiquette adm-etiquette--terminee">Signé</span>
+{%- elseif etat == 'en_attente' -%}
+    <span class="adm-etiquette adm-etiquette--projet">En attente de signature</span>
+{%- elseif etat == 'a_envoyer' -%}
+    <span class="adm-etiquette">Signature à envoyer</span>
+{%- else -%}
+    <span class="adm-muet">—</span>
+{%- endif -%}

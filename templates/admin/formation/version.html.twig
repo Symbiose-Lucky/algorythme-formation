@@ -1,0 +1,61 @@
+{% extends 'admin/base.html.twig' %}
+
+{% import 'admin/formation/_formats.html.twig' as formats %}
+
+{% block title %}{{ formation.nom }}, version {{ version.numero }}{% endblock %}
+
+{% block titre_page %}{{ version.contenu.nom ?? formation.nom }}{% endblock %}
+
+{% block sous_titre %}
+    <p class="adm-entete__sous-titre">
+        <a href="{{ path('app_admin_formation_voir', { id: formation.id }) }}#historique">← Historique</a>
+        · version {{ version.numero }}{{ version.numero == formation.version ? ' (actuelle)' }},
+        enregistrée le {{ version.creeLe|date('d/m/Y à H:i', 'Europe/Paris') }}
+        {%- if version.auteurEmail %} par {{ version.auteurEmail }}{% endif %}
+        {%- if version.motif %} · {{ version.motif }}{% endif %}
+    </p>
+{% endblock %}
+
+{% block contenu %}
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete">
+            <h2>La formation à cette version</h2>
+            {% if version.modifications is not empty %}
+                <p class="adm-carte__compte">
+                    Les champs marqués ont changé par rapport à la version {{ version.numero - 1 }}.
+                </p>
+            {% endif %}
+        </header>
+        <dl class="adm-version">
+            {% for champ, libelle in champs %}
+                {% set valeur = version.contenu[champ] ?? null %}
+                {% set modifie = champ in version.modifications %}
+                <div class="{{ modifie ? 'adm-version__modifie' }}">
+                    <dt>
+                        {{ libelle }}
+                        {% if modifie %}<span class="adm-etiquette adm-etiquette--publiee">Modifié</span>{% endif %}
+                    </dt>
+                    <dd>
+                        {%- if valeur is same as(true) -%}
+                            Oui
+                        {%- elseif valeur is same as(false) -%}
+                            Non
+                        {%- elseif valeur is null or valeur is same as('') -%}
+                            <span class="adm-muet">Non renseigné</span>
+                        {%- elseif champ == 'statut' -%}
+                            {{ statuts[valeur] ?? valeur }}
+                        {%- elseif champ in ['tarifInterHT', 'tarifIntraHT'] -%}
+                            {{ formats.prix(valeur) }}
+                        {%- elseif champ == 'dureeHeures' -%}
+                            {{ formats.heures(valeur) }}
+                        {%- else -%}
+                            {{ valeur }}
+                        {%- endif -%}
+                    </dd>
+                </div>
+            {% endfor %}
+        </dl>
+    </section>
+
+{% endblock %}

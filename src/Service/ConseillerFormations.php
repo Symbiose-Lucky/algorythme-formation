@@ -9,7 +9,7 @@ use RuntimeException;
 /**
  * Rapproche le besoin exprimé par un visiteur des formations publiées.
  *
- * Le catalogue vient de SmartOF, le rapprochement est fait par Claude. Le
+ * Le catalogue vient de l'admin, le rapprochement est fait par Claude. Le
  * modèle ne choisit que parmi les formations qu'on lui donne : il renvoie
  * des slugs, et tout slug inconnu est écarté ici. Rien de ce qui s'affiche
  * ensuite ne vient du modèle, hormis la phrase qui justifie le choix.
@@ -82,7 +82,7 @@ class ConseillerFormations
                     'type' => 'text',
                     'text' => $this->catalogueBalise($catalogue),
                     // Les consignes et le catalogue ne changent qu'avec
-                    // SmartOF : ils sont mis en cache, et seul le besoin est
+                    // l'admin : ils sont mis en cache, et seul le besoin est
                     // relu à chaque visite. Une heure plutôt que cinq minutes,
                     // le site n'ayant pas assez de trafic pour garder chaud un
                     // cache court.
@@ -163,8 +163,8 @@ class ConseillerFormations
 
     /**
      * Le catalogue doit être identique, octet pour octet, d'une visite à
-     * l'autre : sans quoi le cache est manqué. D'où le tri par slug, l'ordre
-     * de l'API SmartOF n'étant pas garanti. Pas d'indentation : elle coûte
+     * l'autre : sans quoi le cache est manqué. D'où le tri par slug, fait par
+     * CatalogueFormations. Pas d'indentation : elle coûte
      * des tokens sans rien apprendre au modèle.
      *
      * @param array<int, array<string, mixed>> $catalogue

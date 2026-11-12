@@ -1,0 +1,72 @@
+{% extends 'admin/base.html.twig' %}
+
+{# Fiche de gestion (formateur, client, participant) : ses champs, les
+   listes qui lui sont liées, son journal. Voir AbstractFicheController. #}
+
+{% block title %}{{ fiche.libelle }}{% endblock %}
+
+{% block titre_page %}
+    {{ fiche.libelle }}
+    {% if fiche.archive %}<span class="adm-etiquette">Archivé</span>{% endif %}
+{% endblock %}
+
+{% block sous_titre %}
+    <p class="adm-entete__sous-titre"><a href="{{ path(route) }}">← {{ libelles.pluriel }}</a></p>
+{% endblock %}
+
+{% block actions %}
+    <a href="{{ path(route ~ '_modifier', { id: fiche.id }) }}" class="adm-bouton adm-bouton--principal">Modifier</a>
+{% endblock %}
+
+{% block contenu %}
+
+    <section class="adm-carte">
+        <dl class="adm-version">
+            {% for champ, libelle in champs %}
+                {% if champ != 'archive' %}
+                    {% set valeur = details[champ] ?? '' %}
+                    <div>
+                        <dt>{{ libelle }}</dt>
+                        <dd>
+                            {%- if valeur is same as('') or valeur is null -%}
+                                <span class="adm-muet">Non renseigné</span>
+                            {%- else -%}
+                                {{ valeur }}
+                            {%- endif -%}
+                        </dd>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </dl>
+    </section>
+
+    {% for liste in listes %}
+        <section class="adm-carte">
+            <header class="adm-carte__tete">
+                <h2>{{ liste.titre }}</h2>
+                <p class="adm-carte__compte">{{ liste.elements|length }}</p>
+            </header>
+            {% if liste.elements is empty %}
+                <p class="adm-vide">{{ liste.vide }}</p>
+            {% else %}
+                <ul class="adm-liens">
+                    {% for element in liste.elements %}
+                        <li>
+                            {% if element.url %}
+                                <a href="{{ element.url }}">{{ element.texte }}</a>
+                            {% else %}
+                                {{ element.texte }}
+                            {% endif %}
+                            <span>{{ element.detail }}</span>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </section>
+    {% endfor %}
+
+    {{ render(controller('App\\Controller\\Admin\\DocumentController::carte', { type: fiche.typeJournal, id: fiche.id })) }}
+
+    {{ include('admin/_journal.html.twig', { cree_le: fiche.creeLe, creation: 'Création de la fiche' }) }}
+
+{% endblock %}

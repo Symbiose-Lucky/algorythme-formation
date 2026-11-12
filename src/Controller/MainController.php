@@ -214,7 +214,7 @@ class MainController extends AbstractController
 
     /**
      * Page éditoriale des domaines. Le texte est écrit dans le template ;
-     * seul le lien « Voir les formations de ce domaine » dépend de SmartOF :
+     * seul le lien « Voir les formations de ce domaine » dépend du catalogue :
      * il n'est affiché que si le catalogue contient ce domaine.
      */
     #[Route('/nos-domaines', name: 'app_domaines')]
@@ -223,7 +223,7 @@ class MainController extends AbstractController
         try {
             $domainesCatalogue = array_keys($catalogue->domaines());
         } catch (Throwable) {
-            // SmartOF injoignable : la page reste lisible, sans les liens.
+            // Catalogue illisible (base injoignable) : la page reste lisible, sans les liens.
             $domainesCatalogue = [];
         }
 
@@ -234,7 +234,7 @@ class MainController extends AbstractController
 
     /**
      * Page éditoriale : méthode et formateurs. Tout le texte est dans le
-     * template, rien ne vient de SmartOF.
+     * template, rien ne vient du catalogue.
      */
     #[Route('/qui-sommes-nous', name: 'app_qui_sommes_nous')]
     public function quiSommesNous(): Response

@@ -1,0 +1,20 @@
+{# Carte « Évaluations » de la fiche d'une session : où en sont les réponses. #}
+<section class="adm-carte" id="evaluations">
+    <header class="adm-carte__tete">
+        <h2>Évaluations et satisfaction</h2>
+        <p class="adm-carte__compte">Participants, clients et formateurs.</p>
+        <a href="{{ path('app_admin_evaluation', { id: session.id }) }}" class="adm-bouton adm-bouton--discret">Suivre</a>
+    </header>
+    {% if comptes is empty %}
+        <p class="adm-vide">Ni participant, ni client, ni formateur pour l'instant.</p>
+    {% else %}
+        <ul class="adm-liens">
+            {% for compte in comptes %}
+                <li>
+                    {{ compte.type.libelle }}
+                    <span>{{ compte.nombre }} sur {{ compte.attendus }}</span>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</section>

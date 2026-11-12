@@ -30,6 +30,54 @@
                     </svg>
                     Requêtes
                 </a>
+                <a href="{{ path('app_admin_formation') }}"
+                   {{ app.current_route starts with 'app_admin_formation' ? 'aria-current="page"' }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 5a2 2 0 0 1 2-2h13v15H6a2 2 0 0 0-2 2z"/><path d="M4 20a2 2 0 0 0 2 2h13v-4"/>
+                    </svg>
+                    Formations
+                </a>
+                <a href="{{ path('app_admin_session') }}"
+                   {{ app.current_route starts with 'app_admin_session' ? 'aria-current="page"' }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>
+                    </svg>
+                    Sessions
+                </a>
+                <a href="{{ path('app_admin_formateur') }}"
+                   {{ app.current_route starts with 'app_admin_formateur' ? 'aria-current="page"' }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>
+                    </svg>
+                    Formateurs
+                </a>
+                <a href="{{ path('app_admin_client') }}"
+                   {{ app.current_route starts with 'app_admin_client' ? 'aria-current="page"' }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M2 21h20M8 8h3M8 12h3M8 16h3"/>
+                    </svg>
+                    Clients
+                </a>
+                <a href="{{ path('app_admin_participant') }}"
+                   {{ app.current_route starts with 'app_admin_participant' ? 'aria-current="page"' }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="9" cy="8" r="3.5"/><path d="M2 21a7 7 0 0 1 14 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a7 7 0 0 1 4 6.5"/>
+                    </svg>
+                    Participants
+                </a>
+                <a href="{{ path('app_admin_organisme') }}"
+                   {{ app.current_route starts with 'app_admin_organisme' ? 'aria-current="page"' }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none"
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6M9 10h.01M15 10h.01"/>
+                    </svg>
+                    Organisme
+                </a>
             </nav>
 
             <div class="adm-barre__pied">
@@ -53,7 +101,15 @@
                     <h1>{% block titre_page %}{% endblock %}</h1>
                     {% block sous_titre %}{% endblock %}
                 </div>
+                <div class="adm-entete__actions">{% block actions %}{% endblock %}</div>
             </header>
+
+            {% for message in app.flashes('erreur') %}
+                <p class="adm-alerte" role="alert">{{ message }}</p>
+            {% endfor %}
+            {% for message in app.flashes('succes') %}
+                <p class="adm-alerte adm-alerte--succes" role="status">{{ message }}</p>
+            {% endfor %}
 
             {% block contenu %}{% endblock %}
         </main>

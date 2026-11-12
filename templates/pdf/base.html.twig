@@ -1,0 +1,93 @@
+{# Gabarit commun des documents générés en PDF (GenerateurPdf, dompdf).
+   dompdf ne connaît ni flexbox ni grille : la mise en page se fait avec
+   des tableaux, les dimensions en millimètres ou en points. #}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block titre %}{% endblock %}</title>
+    <style>
+        @page { margin: 20mm 20mm 24mm 20mm; }
+
+        body {
+            margin: 0;
+            color: #17252C;
+            font-family: 'DejaVu Sans', sans-serif;
+            font-size: 9.5pt;
+            line-height: 1.45;
+        }
+
+        /* Pied répété sur chaque page : mentions légales et numéro de page. */
+        .pied {
+            position: fixed;
+            right: 0;
+            bottom: -16mm;
+            left: 0;
+            padding-top: 2mm;
+            border-top: 0.5pt solid #CBD3D9;
+            color: #5E6E77;
+            font-size: 7pt;
+            line-height: 1.35;
+            text-align: center;
+        }
+
+        .pied .page:after { content: counter(page); }
+
+        table { width: 100%; border-collapse: collapse; }
+        td, th { padding: 0; text-align: left; vertical-align: top; }
+
+        .entete { margin-bottom: 8mm; }
+        .entete img { height: 13mm; }
+        .entete .organisme { color: #5E6E77; font-size: 8pt; text-align: right; }
+
+        h1 { margin: 0 0 2mm; color: #0E1B20; font-size: 16pt; line-height: 1.25; }
+        h2 { margin: 6mm 0 2mm; color: #177078; font-size: 11pt; }
+        h3 { margin: 4mm 0 1mm; font-size: 9.5pt; }
+        p { margin: 0 0 2mm; }
+        ul { margin: 0 0 2mm; padding-left: 5mm; }
+        li { margin-bottom: 0.6mm; }
+
+        .sous-titre { margin-bottom: 6mm; color: #5E6E77; font-size: 10pt; }
+        .muet { color: #5E6E77; }
+        .petit { font-size: 8pt; }
+        .centre { text-align: center; }
+
+        /* Tableau de faits : libellé à gauche, valeur à droite. */
+        .faits td { padding: 1.4mm 0; border-bottom: 0.5pt solid #E2E7EB; }
+        .faits td.libelle { width: 42mm; color: #5E6E77; }
+
+        .encadre { padding: 4mm; border: 0.5pt solid #CBD3D9; background: #F8FAFB; }
+
+        .saut { page-break-before: always; }
+        .insecable { page-break-inside: avoid; }
+    </style>
+    {% block styles %}{% endblock %}
+</head>
+<body>
+
+<div class="pied">
+    {{ organisme.nom }}{% if organisme.formeJuridique %}, {{ organisme.formeJuridique }}{% endif %}
+    {% if organisme.adresse %}· {{ organisme.adresse }}, {{ organisme.codePostal }} {{ organisme.ville }}{% endif %}
+    <br>
+    {% if organisme.siret %}SIRET {{ organisme.siret }} ·{% endif %}
+    {% if organisme.nda %}Déclaration d'activité n° {{ organisme.nda }}{% if organisme.ndaRegion %} (préfet de région {{ organisme.ndaRegion }}){% endif %} ·{% endif %}
+    Page <span class="page"></span>
+</div>
+
+{% block entete %}
+    <table class="entete">
+        <tr>
+            <td>{% if logo %}<img src="{{ logo }}" alt="{{ organisme.nom }}">{% else %}<strong>{{ organisme.nom }}</strong>{% endif %}</td>
+            <td class="organisme">
+                {{ organisme.nom }}<br>
+                {% if organisme.adresse %}{{ organisme.adresse }}<br>{{ organisme.codePostal }} {{ organisme.ville }}<br>{% endif %}
+                {% if organisme.telephone %}{{ organisme.telephone }} · {% endif %}{{ organisme.email }}
+            </td>
+        </tr>
+    </table>
+{% endblock %}
+
+{% block contenu %}{% endblock %}
+
+</body>
+</html>

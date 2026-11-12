@@ -1,0 +1,116 @@
+{% extends 'admin/base.html.twig' %}
+
+{% block title %}Émargement {{ session.reference }}{% endblock %}
+
+{% block titre_page %}Émargement · session {{ session.reference }}{% endblock %}
+
+{% block sous_titre %}
+    <p class="adm-entete__sous-titre">
+        <a href="{{ path('app_admin_session_voir', { id: session.id }) }}">← Session {{ session.reference }}</a>
+        · {{ session.formation.nom }}
+    </p>
+{% endblock %}
+
+{% block actions %}
+    <a href="{{ path('app_admin_emargement_feuille', { id: session.id }) }}" class="adm-bouton adm-bouton--discret">
+        Feuille d'émargement
+    </a>
+    {% if personnes is not empty and seances is not empty %}
+        <form method="post" action="{{ path('app_admin_emargement_envoyer', { id: session.id }) }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
+            <button type="submit" class="adm-bouton adm-bouton--principal">Envoyer les liens par email</button>
+        </form>
+    {% endif %}
+{% endblock %}
+
+{# Les deux boutons de saisie d'une case : présent, absent. #}
+{% macro saisie(session, seance, personne, sauf) %}
+    <form method="post" action="{{ path('app_admin_emargement_saisir', { id: session.id }) }}" class="adm-emargement__saisie">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
+        <input type="hidden" name="seance" value="{{ seance.id }}">
+        <input type="hidden" name="personne" value="{{ personne.cle }}">
+        {% if sauf != 'present' %}
+            <button type="submit" name="etat" value="present" class="adm-bouton adm-bouton--discret">Présent</button>
+        {% endif %}
+        {% if sauf != 'absent' %}
+            <button type="submit" name="etat" value="absent" class="adm-bouton adm-bouton--discret">Absent</button>
+        {% endif %}
+    </form>
+{% endmacro %}
+
+{% block contenu %}
+
+    {% if seances is empty %}
+        <p class="adm-alerte adm-alerte--attention">Cette session n'a pas encore de séances : rien à émarger.</p>
+    {% elseif personnes is empty %}
+        <p class="adm-alerte adm-alerte--attention">
+            Cette session n'a ni formateur ni participant : désignez-les sur la fiche de la session.
+        </p>
+    {% else %}
+
+        <section class="adm-carte">
+            <header class="adm-carte__tete">
+                <h2>Présences</h2>
+                <p class="adm-carte__compte">
+                    Chacun signe depuis son lien personnel, à partir du début de la séance.
+                    Les boutons servent à noter une absence, ou une présence signée sur papier.
+                </p>
+            </header>
+            <div class="adm-table-zone">
+                <table class="adm-table adm-emargement">
+                    <thead>
+                        <tr>
+                            <th scope="col">Personne</th>
+                            {% for ligne in seances %}
+                                <th scope="col">
+                                    {{ ligne.seance.jour|date('d/m') }}
+                                    <span>{{ ligne.seance.debut|date('H:i') }} – {{ ligne.seance.fin|date('H:i') }}</span>
+                                </th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for personne in personnes %}
+                            <tr>
+                                <th scope="row">
+                                    {{ personne.nom }}
+                                    <span>{{ personne.role }}</span>
+                                    <a href="{{ personne.lien }}" target="_blank" rel="noopener">Lien personnel</a>
+                                </th>
+                                {% for ligne in seances %}
+                                    {% set emargement = tableau[ligne.seance.id][personne.cle] ?? null %}
+                                    <td>
+                                        {% if emargement and emargement.estEnLigne %}
+                                            <img src="{{ emargement.signature }}" alt="Signature de {{ personne.nom }}"
+                                                 class="adm-emargement__signature">
+                                            <span class="adm-emargement__preuve">
+                                                Signé le {{ emargement.horodatage|date('d/m à H:i', 'Europe/Paris') }}
+                                            </span>
+                                        {% elseif emargement %}
+                                            <span class="adm-etiquette adm-etiquette--{{ emargement.estPresent ? 'terminee' : 'annulee' }}">
+                                                {{ emargement.etat.libelle }}
+                                            </span>
+                                            <span class="adm-emargement__preuve">
+                                                Saisi le {{ emargement.horodatage|date('d/m à H:i', 'Europe/Paris') }}
+                                            </span>
+                                            {{ _self.saisie(session, ligne.seance, personne, emargement.etat.value) }}
+                                        {% elseif not ligne.ouverte %}
+                                            <span class="adm-muet">Pas commencée</span>
+                                        {% elseif personne.active %}
+                                            <span class="adm-etiquette adm-etiquette--projet">En attente</span>
+                                            {{ _self.saisie(session, ligne.seance, personne, '') }}
+                                        {% else %}
+                                            <span class="adm-muet">—</span>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    {% endif %}
+
+{% endblock %}

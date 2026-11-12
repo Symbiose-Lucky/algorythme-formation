@@ -1,0 +1,255 @@
+{% extends 'admin/base.html.twig' %}
+
+{% import 'admin/session/_formats.html.twig' as formats %}
+
+{% block title %}Session {{ session.reference }}{% endblock %}
+
+{% block titre_page %}
+    Session {{ session.reference }}
+    {{ formats.statut(session.statut) }}
+{% endblock %}
+
+{% block sous_titre %}
+    <p class="adm-entete__sous-titre">
+        <a href="{{ path('app_admin_session') }}">← Sessions</a>
+        · <a href="{{ path('app_admin_formation_voir', { id: session.formation.id }) }}">{{ session.formation.nom }}</a>
+    </p>
+{% endblock %}
+
+{% block actions %}
+    <a href="{{ path('app_admin_session_modifier', { id: session.id }) }}"
+       class="adm-bouton adm-bouton--principal">Modifier</a>
+{% endblock %}
+
+{% block contenu %}
+
+    {% if session.dureeIncoherente %}
+        <p class="adm-alerte adm-alerte--attention" role="status">
+            Les séances totalisent {{ formats.heures(session.heuresPlanifiees) }}, alors que le programme
+            en annonce {{ formats.heures(session.formation.dureeHeures) }}.
+        </p>
+    {% endif %}
+
+    {% if session.programmeDepasse %}
+        <div class="adm-alerte adm-alerte--attention adm-alerte--action" role="status">
+            <p>
+                La fiche de la formation a été modifiée depuis : elle en est à la version
+                {{ session.formation.version }}, cette session suit la version {{ session.programme.numero }}.
+            </p>
+            {% if session.estOuverte %}
+                <form method="post" action="{{ path('app_admin_session_programme', { id: session.id }) }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}"
+                           data-controller="csrf-protection">
+                    <button type="submit" class="adm-bouton adm-bouton--discret">
+                        Suivre la version {{ session.formation.version }}
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <section class="adm-stats" aria-label="En bref">
+        <div class="adm-stat">
+            <p class="adm-stat__libelle">Dates</p>
+            <p class="adm-stat__valeur adm-stat__valeur--texte">{{ formats.dates(session) }}</p>
+        </div>
+        <div class="adm-stat">
+            <p class="adm-stat__libelle">Volume planifié</p>
+            <p class="adm-stat__valeur">
+                {{ session.seances is empty ? '—' : formats.heures(session.heuresPlanifiees) }}
+            </p>
+        </div>
+        <div class="adm-stat">
+            <p class="adm-stat__libelle">Formule</p>
+            <p class="adm-stat__valeur adm-stat__valeur--texte">{{ session.formule.libelle }}</p>
+        </div>
+        <div class="adm-stat">
+            <p class="adm-stat__libelle">Modalité</p>
+            <p class="adm-stat__valeur adm-stat__valeur--texte">{{ session.modalite.libelle }}</p>
+        </div>
+    </section>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete"><h2>Organisation</h2></header>
+        <div class="adm-carte__corps adm-grille">
+            <div class="adm-detail">
+                <h3>Programme dispensé</h3>
+                <p>
+                    <a href="{{ path('app_admin_formation_version', { id: session.formation.id, numero: session.programme.numero }) }}">
+                        {{ session.formation.nom }}, version {{ session.programme.numero }}
+                    </a>
+                    <span class="adm-muet">du {{ session.programme.creeLe|date('d/m/Y', 'Europe/Paris') }}</span>
+                </p>
+            </div>
+            <div class="adm-detail">
+                <h3>Client</h3>
+                {% if session.client %}
+                    <p><a href="{{ path('app_admin_client_voir', { id: session.client.id }) }}">{{ session.client.nom }}</a></p>
+                {% else %}
+                    <p class="adm-muet">Aucun (session inter)</p>
+                {% endif %}
+            </div>
+            <div class="adm-detail">
+                <h3>Formateurs</h3>
+                {% if session.formateurs is empty %}
+                    <p class="adm-muet">Aucun formateur désigné</p>
+                {% else %}
+                    <p>
+                        {% for formateur in session.formateurs %}
+                            <a href="{{ path('app_admin_formateur_voir', { id: formateur.id }) }}">{{ formateur.libelle }}</a>
+                            {{- not loop.last ? ', ' }}
+                        {% endfor %}
+                    </p>
+                {% endif %}
+            </div>
+            <div class="adm-detail">
+                <h3>Lieu</h3>
+                {% if session.lieu %}<p>{{ session.lieu }}</p>{% else %}<p class="adm-muet">Non renseigné</p>{% endif %}
+            </div>
+            <div class="adm-detail">
+                <h3>Notes internes</h3>
+                {% if session.notes %}
+                    <p class="adm-detail__texte">{{ session.notes }}</p>
+                {% else %}
+                    <p class="adm-muet">Aucune</p>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <section class="adm-carte" id="participants">
+        {% set inscrits = session.inscrits|length %}
+        <header class="adm-carte__tete">
+            <h2>Participants</h2>
+            <p class="adm-carte__compte">
+                {{ inscrits }} inscrit{{ inscrits > 1 ? 's' }}{{ session.effectifMax ? ' sur ' ~ session.effectifMax ~ (session.effectifMax > 1 ? ' places' : ' place') }}
+            </p>
+            {% if session.estOuverte %}
+                <a href="{{ path('app_admin_participant_nouveau', { session: session.id }|merge(session.client ? { client: session.client.id } : {})) }}"
+                   class="adm-bouton adm-bouton--discret">Nouveau participant</a>
+            {% endif %}
+        </header>
+
+        {% if session.estOuverte and disponibles is not empty %}
+            <form method="post" action="{{ path('app_admin_session_inscrire', { id: session.id }) }}" class="adm-ajout">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}"
+                       data-controller="csrf-protection">
+                <label for="participant" class="adm-sr">Participant à inscrire</label>
+                <select id="participant" name="participant" required>
+                    <option value="">Inscrire un participant existant…</option>
+                    {% for participant in disponibles %}
+                        <option value="{{ participant.id }}">
+                            {{ participant.libelle }}{{ participant.client ? ' (' ~ participant.client.nom ~ ')' }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="adm-bouton adm-bouton--principal">Inscrire</button>
+            </form>
+        {% endif %}
+
+        {% if session.inscriptions is empty %}
+            <p class="adm-vide">Aucun participant inscrit pour l'instant.</p>
+        {% else %}
+            <div class="adm-table-zone">
+                <table class="adm-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Participant</th>
+                            <th scope="col">Client</th>
+                            <th scope="col">Email</th>
+                            <th scope="col">Inscription</th>
+                            <th scope="col"><span class="adm-sr">Action</span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for inscription in session.inscriptionsTriees %}
+                            {% set participant = inscription.participant %}
+                            <tr class="{{ inscription.estActive ? '' : 'adm-table__inactif' }}">
+                                <td>
+                                    <a href="{{ path('app_admin_participant_voir', { id: participant.id }) }}"
+                                       class="adm-table__titre">{{ participant.libelle }}</a>
+                                    {% if participant.amenagements %}
+                                        <span class="adm-etiquette adm-etiquette--projet"
+                                              title="Voir la fiche du participant">Aménagements à prévoir</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ inscription.client ? inscription.client.nom : '—' }}</td>
+                                <td>{{ participant.email ?: '—' }}</td>
+                                <td class="adm-table__date">
+                                    {% if inscription.estActive %}
+                                        {{ inscription.creeLe|date('d/m/Y', 'Europe/Paris') }}
+                                    {% else %}
+                                        <span class="adm-etiquette adm-etiquette--annulee">Annulée</span>
+                                    {% endif %}
+                                </td>
+                                <td class="adm-table__action">
+                                    {% if session.estOuverte %}
+                                        {% if inscription.estActive %}
+                                            <form method="post"
+                                                  action="{{ path('app_admin_session_desinscrire', { id: session.id, inscription: inscription.id }) }}">
+                                                <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}"
+                                                       data-controller="csrf-protection">
+                                                <button type="submit" class="adm-bouton adm-bouton--discret">Annuler</button>
+                                            </form>
+                                        {% else %}
+                                            <form method="post" action="{{ path('app_admin_session_inscrire', { id: session.id }) }}">
+                                                <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}"
+                                                       data-controller="csrf-protection">
+                                                <input type="hidden" name="participant" value="{{ participant.id }}">
+                                                <button type="submit" class="adm-bouton adm-bouton--discret">Réinscrire</button>
+                                            </form>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </section>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete">
+            <h2>Séances</h2>
+            <p class="adm-carte__compte">{{ session.seances|length }} séance{{ session.seances|length > 1 ? 's' }}</p>
+            {% if session.seances is not empty %}
+                <a href="{{ path('app_admin_emargement', { id: session.id }) }}" class="adm-bouton adm-bouton--discret">
+                    Émargement
+                </a>
+            {% endif %}
+        </header>
+        {% if session.seances is empty %}
+            <p class="adm-vide">Les dates de cette session restent à planifier.</p>
+        {% else %}
+            <div class="adm-table-zone">
+                <table class="adm-table adm-table--etroite">
+                    <thead>
+                        <tr>
+                            <th scope="col">Date</th>
+                            <th scope="col">Horaires</th>
+                            <th scope="col" class="adm-table__nombre">Durée</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for seance in session.seancesTriees %}
+                            <tr>
+                                <td>{{ ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'][seance.jour|date('w')] }}
+                                    {{ seance.jour|date('d/m/Y') }}</td>
+                                <td>{{ seance.debut|date('H:i') }} – {{ seance.fin|date('H:i') }}</td>
+                                <td class="adm-table__nombre">{{ formats.heures(seance.minutes / 60) }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </section>
+
+    {{ render(controller('App\\Controller\\Admin\\EvaluationController::carte', { id: session.id })) }}
+
+    {{ render(controller('App\\Controller\\Admin\\DocumentController::carte', { type: 'session', id: session.id })) }}
+
+    {{ include('admin/_journal.html.twig', { cree_le: session.creeLe, creation: 'Création de la session' }) }}
+
+{% endblock %}

@@ -1,0 +1,115 @@
+{% extends 'admin/base.html.twig' %}
+
+{% form_theme form with 'admin/_form_theme.html.twig' only %}
+
+{% set manques = organisme.manques %}
+
+{% block title %}Organisme{% endblock %}
+
+{% block titre_page %}Organisme{% endblock %}
+
+{% block sous_titre %}
+    <p class="adm-entete__sous-titre">
+        L'identité de l'organisme et la signature de son représentant, reprises sur les documents générés.
+    </p>
+{% endblock %}
+
+{% block contenu %}
+
+    {% if manques %}
+        <p class="adm-alerte adm-alerte--attention" role="status">
+            À renseigner avant de générer une convention ou un certificat : {{ manques|join(', ')|lower }}.
+        </p>
+    {% endif %}
+
+    {{ form_start(form, { attr: { class: 'adm-fiche', novalidate: 'novalidate' } }) }}
+
+    {% if not form.vars.valid %}
+        <p class="adm-alerte" role="alert">La fiche n'a pas été enregistrée : certains champs sont à corriger.</p>
+    {% endif %}
+    {{ form_errors(form) }}
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete"><h2>Identité</h2></header>
+        <div class="adm-carte__corps adm-grille">
+            {{ form_row(form.nom) }}
+            {{ form_row(form.formeJuridique) }}
+            <div class="adm-grille__large">{{ form_row(form.adresse) }}</div>
+            {{ form_row(form.codePostal) }}
+            {{ form_row(form.ville) }}
+            {{ form_row(form.siret) }}
+            {{ form_row(form.rcs) }}
+            {{ form_row(form.nda) }}
+            {{ form_row(form.ndaRegion) }}
+            {{ form_row(form.telephone) }}
+            {{ form_row(form.email) }}
+        </div>
+    </section>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete"><h2>Représentant et conditions</h2></header>
+        <div class="adm-carte__corps adm-grille">
+            {{ form_row(form.representantNom) }}
+            {{ form_row(form.representantQualite) }}
+            {{ form_row(form.tauxTva) }}
+            <div class="adm-grille__large">{{ form_row(form.conditionsReglement) }}</div>
+            <div class="adm-grille__large">{{ form_row(form.conditionsAnnulation) }}</div>
+        </div>
+    </section>
+
+    <div class="adm-fiche__actions">
+        <div class="adm-fiche__boutons">
+            <button type="submit" class="adm-bouton adm-bouton--principal">Enregistrer</button>
+        </div>
+    </div>
+
+    {{ form_end(form) }}
+
+    <section class="adm-carte" id="signature">
+        <header class="adm-carte__tete">
+            <h2>Signature du représentant</h2>
+            <p class="adm-carte__compte">
+                Apposée sur les conventions et les certificats de réalisation générés ensuite.
+            </p>
+        </header>
+        <div class="adm-carte__corps adm-grille">
+            <div class="adm-detail">
+                <h3>Signature enregistrée</h3>
+                {% if organisme.signature %}
+                    <img src="{{ organisme.signature }}" alt="Signature du représentant" class="adm-organisme__signature">
+                    <form method="post" action="{{ path('app_admin_organisme_signature') }}">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
+                        <button type="submit" name="retirer" value="1" class="adm-bouton adm-bouton--discret">Retirer</button>
+                    </form>
+                {% else %}
+                    <p class="adm-muet">Aucune : les documents générés laissent le cadre de signature vide.</p>
+                {% endif %}
+            </div>
+
+            <form method="post" action="{{ path('app_admin_organisme_signature') }}" class="adm-form"
+                  data-controller="signature" data-action="submit->signature#envoyer">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
+                <div>
+                    <canvas class="adm-signature" data-signature-target="cadre"
+                            aria-label="Cadre de signature : signez à la souris ou au doigt"></canvas>
+                    <p class="adm-champ__aide">
+                        {{ organisme.signature ? 'Signez ici pour la remplacer.' : 'Signez ici, à la souris ou au doigt.' }}
+                    </p>
+                    <p class="adm-champ__erreur" role="alert" data-signature-target="erreur" hidden>
+                        Signez dans le cadre avant de valider.
+                    </p>
+                </div>
+                <input type="hidden" name="signature" data-signature-target="champ">
+                <div class="adm-signer__actions">
+                    <button type="button" class="adm-bouton adm-bouton--discret" data-action="signature#effacer">Effacer</button>
+                    <button type="submit" class="adm-bouton adm-bouton--principal">Enregistrer la signature</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    {% if journal is not empty %}
+        {{ include('admin/_journal.html.twig', { cree_le: (journal|last).creeLe, creation: 'Création de la fiche' }) }}
+    {% endif %}
+
+{% endblock %}

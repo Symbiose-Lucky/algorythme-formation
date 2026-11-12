@@ -1,0 +1,111 @@
+{% extends 'admin/base.html.twig' %}
+
+{% form_theme form with 'admin/_form_theme.html.twig' only %}
+
+{% set creation = formation.id is null %}
+{% set retour = creation ? path('app_admin_formation') : path('app_admin_formation_voir', { id: formation.id }) %}
+
+{% block title %}{{ creation ? 'Nouvelle formation' : 'Modifier ' ~ formation.nom }}{% endblock %}
+
+{% block titre_page %}{{ creation ? 'Nouvelle formation' : 'Modifier la formation' }}{% endblock %}
+
+{% block sous_titre %}
+    <p class="adm-entete__sous-titre">
+        {% if creation %}
+            Un brouillon peut rester incomplet : seuls l'intitulé, le code et la durée sont obligatoires.
+        {% else %}
+            {{ formation.nom }} · version {{ formation.version }}
+        {% endif %}
+    </p>
+{% endblock %}
+
+{% block contenu %}
+
+    {{ form_start(form, { attr: { class: 'adm-fiche', novalidate: 'novalidate' } }) }}
+
+    {% if not form.vars.valid %}
+        <p class="adm-alerte" role="alert">
+            La formation n'a pas été enregistrée : certains champs sont à corriger.
+        </p>
+    {% endif %}
+    {{ form_errors(form) }}
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete"><h2>Identité</h2></header>
+        <div class="adm-carte__corps adm-grille">
+            <div class="adm-grille__large">{{ form_row(form.nom) }}</div>
+            {{ form_row(form.code) }}
+            {{ form_row(form.statut) }}
+            {{ form_row(form.domaine) }}
+            {{ form_row(form.slug) }}
+            <div class="adm-grille__large">{{ form_row(form.accroche) }}</div>
+            <div class="adm-grille__large">{{ form_row(form.enPageAccueil) }}</div>
+        </div>
+        <datalist id="domaines">
+            {% for domaine in domaines %}
+                <option value="{{ domaine }}"></option>
+            {% endfor %}
+        </datalist>
+    </section>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete"><h2>Durée, lieu et tarifs</h2></header>
+        <div class="adm-carte__corps adm-grille">
+            {{ form_row(form.dureeHeures) }}
+            {{ form_row(form.lieu) }}
+            {{ form_row(form.tarifInterHT) }}
+            {{ form_row(form.tarifIntraHT) }}
+        </div>
+    </section>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete"><h2>Programme</h2></header>
+        <div class="adm-carte__corps adm-grille">
+            <div class="adm-grille__large">{{ form_row(form.objectifs) }}</div>
+            {{ form_row(form.publicVise) }}
+            {{ form_row(form.prerequis) }}
+            <div class="adm-grille__large">{{ form_row(form.programme) }}</div>
+            <div class="adm-grille__large">{{ form_row(form.ceQuiChange) }}</div>
+        </div>
+    </section>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete">
+            <h2>Modalités</h2>
+            <p class="adm-carte__compte">
+                Laissées vides, le site affiche ses textes communs à toutes les formations.
+            </p>
+        </header>
+        <div class="adm-carte__corps adm-grille">
+            {{ form_row(form.methodes) }}
+            {{ form_row(form.moyens) }}
+            {{ form_row(form.evaluation) }}
+            {{ form_row(form.acces) }}
+            {{ form_row(form.accessibilite) }}
+            {{ form_row(form.profilFormateurs) }}
+        </div>
+    </section>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete"><h2>Chiffres affichés</h2></header>
+        <div class="adm-carte__corps adm-grille">
+            {{ form_row(form.note) }}
+            {{ form_row(form.nbFormes) }}
+        </div>
+    </section>
+
+    <div class="adm-fiche__actions">
+        {% if form.motif is defined %}
+            {{ form_row(form.motif) }}
+        {% endif %}
+        <div class="adm-fiche__boutons">
+            <a href="{{ retour }}" class="adm-bouton adm-bouton--discret">Annuler</a>
+            <button type="submit" class="adm-bouton adm-bouton--principal">
+                {{ creation ? 'Créer la formation' : 'Enregistrer' }}
+            </button>
+        </div>
+    </div>
+
+    {{ form_end(form) }}
+
+{% endblock %}

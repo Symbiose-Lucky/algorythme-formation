@@ -1,0 +1,36 @@
+{# Pages ouvertes par un lien personnel (émargement, signature d'un
+   document) : pas de menu, pas de compte, lisibles sur un téléphone.
+   Elles reprennent la feuille et les composants de l'admin. #}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}{% endblock %} · {{ APP_NOM_OF }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="referrer" content="no-referrer">
+    <link rel="icon" type="image/png" href="{{ asset('images/favicon.png') }}">
+    {{ importmap('admin') }}
+</head>
+<body class="adm">
+
+<main class="adm-signer {% block classe_page %}{% endblock %}">
+
+    <header class="adm-signer__marque">
+        <img src="{{ asset('images/logo_algorythme_formation.png') }}" alt="{{ APP_NOM_OF }}">
+    </header>
+
+    {% for message in app.flashes('succes') %}
+        <p class="adm-alerte adm-alerte--succes" role="status">{{ message }}</p>
+    {% endfor %}
+
+    {% block contenu %}{% endblock %}
+
+    <footer class="adm-signer__pied">
+        {{ APP_NOM_OF }} · <a href="mailto:contact@algorythme-formation.fr">contact@algorythme-formation.fr</a>
+    </footer>
+
+</main>
+
+</body>
+</html>

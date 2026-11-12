@@ -1,0 +1,205 @@
+{% extends 'admin/base.html.twig' %}
+
+{% set etat = document.etatSignature %}
+{% set fichier = path('app_admin_document_fichier', { id: document.id }) %}
+{# Tant qu'un signataire n'a pas reçu sa demande, on peut encore placer ses zones. #}
+{% set placement = document.estPdf and not document.archive and document.signataires|filter(s => not s.estVerrouille)|length > 0 %}
+{% set attendus = document.signataires|filter(s => not s.aSigne)|length %}
+{% set signes = document.signataires|length - attendus %}
+
+{% block title %}{{ document.nom }}{% endblock %}
+
+{% block titre_page %}
+    {{ document.nom }}
+    {% if document.archive %}<span class="adm-etiquette">Archivé</span>{% endif %}
+    {% if etat %}{{ include('admin/document/_etat.html.twig', { etat: etat }) }}{% endif %}
+{% endblock %}
+
+{% block sous_titre %}
+    <p class="adm-entete__sous-titre">
+        {% if retour %}<a href="{{ retour.url }}">← {{ retour.libelle }}</a> ·{% endif %}
+        {{ document.categorie.libelle }}
+    </p>
+{% endblock %}
+
+{% block actions %}
+    <a href="{{ fichier }}?telecharger=1" class="adm-bouton adm-bouton--discret" data-turbo="false">Télécharger</a>
+    <form method="post" action="{{ path('app_admin_document_archiver', { id: document.id }) }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
+        <button type="submit" class="adm-bouton adm-bouton--discret">{{ document.archive ? 'Désarchiver' : 'Archiver' }}</button>
+    </form>
+{% endblock %}
+
+{% block contenu %}
+
+    <div class="adm-document"
+         {% if document.estPdf %}
+             data-controller="document"
+             data-document-fichier-value="{{ fichier }}"
+             data-document-worker-value="{{ asset('vendor/pdfjs-dist/legacy/build/pdf.worker.mjs.js') }}"
+             data-document-donnees-value="{{ donnees|json_encode }}"
+             data-document-placement-value="{{ placement ? 'true' : 'false' }}"
+         {% endif %}>
+
+        {# ------------------------------------------------------ Aperçu #}
+        <section class="adm-carte adm-document__apercu">
+            {% if document.estPdf %}
+                <p class="adm-vide" data-document-target="etat">Chargement du document…</p>
+                <div class="adm-pages" data-document-target="pages"
+                     data-action="pointerdown->document#commencer pointermove->document#tracer pointerup->document#finir pointercancel->document#finir"></div>
+            {% else %}
+                <p class="adm-vide">
+                    Ce type de fichier ne s'affiche pas ici : téléchargez-le pour le consulter.
+                    Seul un PDF peut être envoyé pour signature.
+                </p>
+            {% endif %}
+        </section>
+
+        {# ----------------------------------------------------- Panneau #}
+        <div class="adm-document__panneau">
+
+            {% if document.estPdf %}
+                <section class="adm-carte">
+                    <header class="adm-carte__tete">
+                        <h2>Signature</h2>
+                        {% if document.signataires is not empty %}
+                            <p class="adm-carte__compte">{{ signes }} sur {{ document.signataires|length }}</p>
+                        {% endif %}
+                    </header>
+
+                    {% if document.signataires is empty %}
+                        <p class="adm-carte__corps adm-muet">
+                            Pour faire signer ce document : désignez les signataires ci-dessous, placez la zone
+                            de signature de chacun sur le document, puis envoyez.
+                        </p>
+                    {% else %}
+                        <ul class="adm-signataires">
+                            {% for signataire in document.signataires %}
+                                <li class="adm-signataire adm-signataire--{{ loop.index0 % 5 }}">
+                                    {% if placement and not signataire.estVerrouille %}
+                                        <input type="radio" name="actif" id="signataire-{{ signataire.id }}"
+                                               value="{{ signataire.id }}" data-action="change->document#choisir">
+                                    {% endif %}
+                                    <label for="signataire-{{ signataire.id }}">
+                                        <strong>{{ signataire.nom }}</strong>
+                                        <span>{{ signataire.email }}</span>
+                                        <span>
+                                            {% if signataire.aSigne %}
+                                                Signé le {{ signataire.signeLe|date('d/m/Y à H:i', 'Europe/Paris') }}
+                                                {% if signataire.ip %}· {{ signataire.ip }}{% endif %}
+                                            {% elseif signataire.envoyeLe %}
+                                                Demande envoyée le {{ signataire.envoyeLe|date('d/m/Y à H:i', 'Europe/Paris') }}
+                                            {% elseif signataire.zones is empty %}
+                                                Cochez, puis tracez sa zone sur le document
+                                            {% else %}
+                                                {{ signataire.zones|length }} zone{{ signataire.zones|length > 1 ? 's' }}, pas encore envoyé
+                                            {% endif %}
+                                        </span>
+                                        {% if not signataire.aSigne %}
+                                            <a href="{{ url('app_signature', { jeton: signataire.jeton }) }}"
+                                               target="_blank" rel="noopener">Lien personnel</a>
+                                        {% endif %}
+                                    </label>
+                                    {% if not signataire.aSigne and not document.archive %}
+                                        <form method="post"
+                                              action="{{ path('app_admin_document_retirer', { id: document.id, signataire: signataire.id }) }}">
+                                            <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}"
+                                                   data-controller="csrf-protection">
+                                            <button type="submit" class="adm-bouton adm-bouton--discret"
+                                                    title="{{ signataire.envoyeLe ? 'Annuler la demande de signature' : 'Retirer ce signataire' }}">
+                                                Retirer
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+
+                        {% if not document.archive and attendus > 0 %}
+                            <form method="post" action="{{ path('app_admin_document_zones', { id: document.id }) }}"
+                                  class="adm-carte__corps adm-form">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}"
+                                       data-controller="csrf-protection">
+                                <input type="hidden" name="zones" data-document-target="champ">
+                                <p class="adm-champ__aide" data-document-target="modifie" hidden>
+                                    Zones modifiées : pensez à enregistrer.
+                                </p>
+                                <div class="adm-signer__actions">
+                                    {% if placement %}
+                                        <button type="submit" class="adm-bouton adm-bouton--discret">Enregistrer les zones</button>
+                                    {% endif %}
+                                    <button type="submit" name="envoyer" value="1" class="adm-bouton adm-bouton--principal">
+                                        {{ etat == 'en_attente' ? 'Relancer par email' : 'Envoyer pour signature' }}
+                                    </button>
+                                </div>
+                            </form>
+                        {% endif %}
+
+                        {% if signes > 0 %}
+                            <div class="adm-carte__corps">
+                                <button type="button" class="adm-bouton adm-bouton--discret adm-bouton--large"
+                                        data-action="document#telecharger">
+                                    Télécharger le PDF signé
+                                </button>
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                </section>
+
+                {% if not document.archive %}
+                    <section class="adm-carte">
+                        <header class="adm-carte__tete"><h2>Ajouter un signataire</h2></header>
+
+                        {% if contacts is not empty %}
+                            <div class="adm-carte__corps adm-contacts">
+                                {% for contact in contacts %}
+                                    <form method="post" action="{{ path('app_admin_document_signataire', { id: document.id }) }}">
+                                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}"
+                                               data-controller="csrf-protection">
+                                        <input type="hidden" name="nom" value="{{ contact.nom }}">
+                                        <input type="hidden" name="email" value="{{ contact.email }}">
+                                        <button type="submit" class="adm-bouton adm-bouton--discret"
+                                                title="{{ contact.email }}">+ {{ contact.nom }} <span>{{ contact.role }}</span></button>
+                                    </form>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <form method="post" action="{{ path('app_admin_document_signataire', { id: document.id }) }}"
+                              class="adm-carte__corps adm-form">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}"
+                                   data-controller="csrf-protection">
+                            <div class="adm-champ">
+                                <label for="signataire-nom">Nom</label>
+                                <input type="text" id="signataire-nom" name="nom" maxlength="200" required>
+                            </div>
+                            <div class="adm-champ">
+                                <label for="signataire-email">Email</label>
+                                <input type="email" id="signataire-email" name="email" maxlength="180" required>
+                            </div>
+                            <button type="submit" class="adm-bouton adm-bouton--discret">Ajouter</button>
+                        </form>
+                    </section>
+                {% endif %}
+            {% endif %}
+
+            <section class="adm-carte">
+                <header class="adm-carte__tete"><h2>Fichier</h2></header>
+                <dl class="adm-carte__corps adm-fichier">
+                    <div><dt>Nom d'origine</dt><dd>{{ document.nomOriginal }}</dd></div>
+                    <div><dt>Taille</dt><dd>{{ document.tailleLisible }}</dd></div>
+                    <div>
+                        <dt>Déposé</dt>
+                        <dd>
+                            le {{ document.deposeLe|date('d/m/Y à H:i', 'Europe/Paris') }}
+                            {% if document.deposePar %}par {{ document.deposePar }}{% endif %}
+                        </dd>
+                    </div>
+                    <div><dt>Empreinte SHA-256</dt><dd class="adm-fichier__empreinte">{{ document.empreinte }}</dd></div>
+                </dl>
+            </section>
+
+        </div>
+    </div>
+
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends 'pdf/base.html.twig' %}
+
+{# Convocation d'un participant à une session, avec son lien personnel d'émargement. #}
+
+{% import 'pdf/_session.html.twig' as s %}
+
+{% block titre %}Convocation - {{ participant.prenom }} {{ participant.nom }}{% endblock %}
+
+{% block contenu %}
+
+    <h1>Convocation à une formation</h1>
+    <p class="sous-titre">Session {{ session.reference }}</p>
+
+    <p>{{ participant.prenom }} {{ participant.nom }},</p>
+    <p>
+        Nous avons le plaisir de vous confirmer votre inscription à la formation
+        <strong>« {{ fiche.nom }} »</strong>, qui se déroulera {{ s.dates(session) }}.
+    </p>
+
+    <h2>Informations pratiques</h2>
+    <table class="faits">
+        <tr><td class="libelle">Durée</td><td>{{ s.heures(session.heuresPlanifiees) }}</td></tr>
+        <tr><td class="libelle">Modalité</td><td>{{ session.modalite.libelle }}</td></tr>
+        <tr><td class="libelle">Lieu</td><td>{{ session.lieu ?: 'Il vous sera précisé avant le début de la formation.' }}</td></tr>
+        {% if session.formateurs is not empty %}
+            <tr>
+                <td class="libelle">Formateur{{ session.formateurs|length > 1 ? 's' }}</td>
+                <td>{% for formateur in session.formateurs %}{{ formateur.libelle }}{{ not loop.last ? ', ' }}{% endfor %}</td>
+            </tr>
+        {% endif %}
+    </table>
+
+    <h2>Calendrier</h2>
+    {{ s.seances(session) }}
+
+    {% if objectifs %}
+        <div class="insecable">
+            <h2>Objectifs de la formation</h2>
+            {{ s.liste(objectifs) }}
+        </div>
+    {% endif %}
+
+    {% if prerequis %}
+        <div class="insecable">
+            <h2>Prérequis</h2>
+            {{ s.liste(prerequis) }}
+        </div>
+    {% endif %}
+
+    <div class="insecable">
+        <h2>Votre présence</h2>
+        <p>
+            À chaque demi-journée, vous signez votre présence en ligne, à partir de l'heure de début de la séance.
+            Ce lien vous est personnel, ne le transmettez pas :
+        </p>
+        <p class="encadre petit">{{ lienEmargement }}</p>
+    </div>
+
+    <div class="insecable">
+        <h2>Accessibilité et contact</h2>
+        <p>
+            Si votre situation demande un aménagement (handicap, contrainte particulière), prévenez-nous dès
+            réception de cette convocation : nous adapterons les modalités, les supports ou le rythme.
+        </p>
+        <p>
+            Pour toute question : {{ organisme.email }}{% if organisme.telephone %} · {{ organisme.telephone }}{% endif %}.
+        </p>
+    </div>
+
+    <p class="muet petit" style="margin-top: 6mm;">Convocation éditée le {{ s.jour(editeLe) }}.</p>
+
+{% endblock %}

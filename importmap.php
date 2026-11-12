@@ -29,4 +29,25 @@ return [
     '@hotwired/turbo' => [
         'version' => '7.3.0',
     ],
+    'pdfjs-dist/legacy/build/pdf.mjs' => [
+        'version' => '4.10.38',
+    ],
+    'pdfjs-dist/legacy/build/pdf.worker.mjs' => [
+        'version' => '4.10.38',
+    ],
+    'pdf-lib' => [
+        'version' => '1.17.1',
+    ],
+    'tslib' => [
+        'version' => '1.14.1',
+    ],
+    '@pdf-lib/standard-fonts' => [
+        'version' => '1.0.0',
+    ],
+    'pako' => [
+        'version' => '1.0.11',
+    ],
+    '@pdf-lib/upng' => [
+        'version' => '1.0.1',
+    ],
 ];

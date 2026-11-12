@@ -1,0 +1,219 @@
+{% extends 'admin/base.html.twig' %}
+
+{% import 'admin/formation/_formats.html.twig' as formats %}
+
+{% set inscrits = session.inscrits %}
+
+{% block title %}Documents de la session {{ session.reference }}{% endblock %}
+
+{% block titre_page %}Générer les documents · session {{ session.reference }}{% endblock %}
+
+{% block sous_titre %}
+    <p class="adm-entete__sous-titre">
+        <a href="{{ path('app_admin_session_voir', { id: session.id, _fragment: 'documents' }) }}">← Session {{ session.reference }}</a>
+        · {{ session.formation.nom }}
+    </p>
+{% endblock %}
+
+{# Le document déjà généré, s'il existe : lien, date, état de signature. #}
+{% macro existant(document) %}
+    {% if document %}
+        <a href="{{ path('app_admin_document_voir', { id: document.id }) }}">{{ document.nom }}</a>
+        <span class="adm-muet">généré le {{ document.deposeLe|date('d/m/Y à H:i', 'Europe/Paris') }}</span>
+        {% if document.etatSignature %}{{ include('admin/document/_etat.html.twig', { etat: document.etatSignature }) }}{% endif %}
+    {% else %}
+        <span class="adm-muet">Pas encore généré</span>
+    {% endif %}
+{% endmacro %}
+
+{# Le bouton qui génère un modèle. #}
+{% macro bouton(session, modele, libelle) %}
+    <form method="post" action="{{ path('app_admin_generation_generer', { id: session.id }) }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
+        <input type="hidden" name="modele" value="{{ modele }}">
+        <button type="submit" class="adm-bouton adm-bouton--principal">{{ libelle }}</button>
+    </form>
+{% endmacro %}
+
+{% block contenu %}
+
+    {% if manques %}
+        <p class="adm-alerte adm-alerte--attention adm-alerte--action" role="status">
+            <span>
+                La fiche de l'organisme est incomplète ({{ manques|join(', ')|lower }}) : la convention et les
+                certificats ne peuvent pas être générés.
+            </span>
+            <a href="{{ path('app_admin_organisme') }}" class="adm-bouton adm-bouton--discret">Compléter la fiche</a>
+        </p>
+    {% elseif not signatureOrganisme %}
+        <p class="adm-alerte adm-alerte--attention adm-alerte--action" role="status">
+            <span>Aucune signature de l'organisme n'est enregistrée : son cadre restera vide sur les documents.</span>
+            <a href="{{ path('app_admin_organisme', { _fragment: 'signature' }) }}" class="adm-bouton adm-bouton--discret">
+                Enregistrer la signature
+            </a>
+        </p>
+    {% endif %}
+
+    <p class="adm-entete__sous-titre adm-generation__note">
+        Générer à nouveau un document archive sa version précédente, sauf si elle est déjà signée.
+        Chaque document généré se retrouve dans les documents de la session.
+    </p>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete">
+            <h2>Programme</h2>
+            <p class="adm-carte__compte">
+                Version {{ session.programme.numero }} de la fiche, celle que la session dispense.
+            </p>
+            {{ _self.bouton(session, 'programme', existants.programme is defined ? 'Générer à nouveau' : 'Générer') }}
+        </header>
+        <p class="adm-carte__corps">{{ _self.existant(existants.programme ?? null) }}</p>
+    </section>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete">
+            <h2>Convention de formation</h2>
+            <p class="adm-carte__compte">Une par client. La zone de signature du client est placée d'avance.</p>
+        </header>
+        {% if conventions is empty %}
+            <p class="adm-vide">
+                Aucun client : désignez le client de la session, ou inscrivez des participants rattachés à un client.
+            </p>
+        {% else %}
+            <div class="adm-table-zone">
+                <table class="adm-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Client</th>
+                            <th scope="col">Convention</th>
+                            <th scope="col">Prix HT</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ligne in conventions %}
+                            <tr>
+                                <td>
+                                    <a href="{{ path('app_admin_client_voir', { id: ligne.client.id }) }}"
+                                       class="adm-table__titre">{{ ligne.client.nom }}</a>
+                                    <span class="adm-table__code">
+                                        {{ ligne.participants }} participant{{ ligne.participants > 1 ? 's' }}
+                                        {{ ligne.client.contactEmail ? '' : '· sans email : signataire à désigner à la main' }}
+                                    </span>
+                                </td>
+                                <td>{{ _self.existant(ligne.document) }}</td>
+                                <td class="adm-table__action">
+                                    <form method="post" action="{{ path('app_admin_generation_generer', { id: session.id }) }}"
+                                          class="adm-generation__prix">
+                                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}"
+                                               data-controller="csrf-protection">
+                                        <input type="hidden" name="modele" value="convention">
+                                        <input type="hidden" name="client" value="{{ ligne.client.id }}">
+                                        <label for="montant-{{ ligne.client.id }}" class="adm-sr">
+                                            Prix hors taxes pour {{ ligne.client.nom }}, en euros
+                                        </label>
+                                        <input type="number" id="montant-{{ ligne.client.id }}" name="montant" min="0" step="0.01" required
+                                               value="{{ ligne.montant is null ? '' : (ligne.montant / 100)|number_format(2, '.', '') }}">
+                                        <span aria-hidden="true">€</span>
+                                        <button type="submit" class="adm-bouton adm-bouton--principal">
+                                            {{ ligne.document ? 'Générer à nouveau' : 'Générer' }}
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </section>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete">
+            <h2>Convocations</h2>
+            <p class="adm-carte__compte">Une par participant, avec son lien personnel d'émargement.</p>
+            {% if inscrits %}
+                {{ _self.bouton(session, 'convocations', 'Générer les ' ~ inscrits|length ~ ' convocation' ~ (inscrits|length > 1 ? 's')) }}
+            {% endif %}
+        </header>
+        {% if inscrits is empty %}
+            <p class="adm-vide">Aucun participant inscrit.</p>
+        {% else %}
+            <ul class="adm-liens">
+                {% for inscription in inscrits %}
+                    <li>
+                        {{ inscription.participant.libelle }}
+                        <span>{{ _self.existant(existants['convocation:inscription:' ~ inscription.id] ?? null) }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </section>
+
+    <section class="adm-carte">
+        <header class="adm-carte__tete">
+            <h2>Certificats de réalisation</h2>
+            <p class="adm-carte__compte">Un par participant présent. La durée attestée est celle des séances émargées.</p>
+            {% if heures|filter(l => l.heures > 0) %}
+                {{ _self.bouton(session, 'certificats', 'Générer les certificats') }}
+            {% endif %}
+        </header>
+        {% if heures is empty %}
+            <p class="adm-vide">Aucun participant inscrit.</p>
+        {% else %}
+            <ul class="adm-liens">
+                {% for ligne in heures %}
+                    <li>
+                        <span class="adm-generation__personne">
+                            {{ ligne.inscription.participant.libelle }}
+                            <span>
+                                {% if ligne.heures > 0 %}
+                                    {{ formats.heures(ligne.heures) }} émargées sur {{ formats.heures(session.heuresPlanifiees) }}
+                                {% else %}
+                                    aucune présence émargée
+                                {% endif %}
+                            </span>
+                        </span>
+                        <span>{{ _self.existant(existants['certificat:inscription:' ~ ligne.inscription.id] ?? null) }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </section>
+
+    <section class="adm-carte">
+        {% set evalues = heures|filter(l => l.heures > 0 and evaluations[l.inscription.id].acquis is defined) %}
+        <header class="adm-carte__tete">
+            <h2>Attestations de fin de formation</h2>
+            <p class="adm-carte__compte">
+                Une par participant présent dont les acquis ont été évalués : elle en reprend le résultat.
+            </p>
+            {% if evalues %}
+                {{ _self.bouton(session, 'attestations', 'Générer les attestations') }}
+            {% endif %}
+        </header>
+        {% if heures is empty %}
+            <p class="adm-vide">Aucun participant inscrit.</p>
+        {% else %}
+            <ul class="adm-liens">
+                {% for ligne in heures %}
+                    <li>
+                        <span class="adm-generation__personne">
+                            {{ ligne.inscription.participant.libelle }}
+                            <span>
+                                {% if evaluations[ligne.inscription.id].acquis is not defined %}
+                                    <a href="{{ path('app_admin_evaluation', { id: session.id }) }}">acquis pas encore évalués</a>
+                                {% elseif ligne.heures <= 0 %}
+                                    aucune présence émargée
+                                {% else %}
+                                    acquis évalués
+                                {% endif %}
+                            </span>
+                        </span>
+                        <span>{{ _self.existant(existants['attestation:inscription:' ~ ligne.inscription.id] ?? null) }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </section>
+
+{% endblock %}

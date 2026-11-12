@@ -1,0 +1,103 @@
+{% extends 'admin/base.html.twig' %}
+
+{# Feuille d'émargement d'une session : la pièce que l'on imprime ou que
+   l'on montre à l'auditeur. À l'impression, la navigation disparaît. #}
+
+{% set jours = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'] %}
+
+{% block title %}Feuille d'émargement {{ session.reference }}{% endblock %}
+
+{% block titre_page %}Feuille d'émargement{% endblock %}
+
+{% block sous_titre %}
+    <p class="adm-entete__sous-titre adm-ecran">
+        <a href="{{ path('app_admin_emargement', { id: session.id }) }}">← Émargement de la session {{ session.reference }}</a>
+    </p>
+{% endblock %}
+
+{% block actions %}
+    <button type="button" class="adm-bouton adm-bouton--principal" onclick="window.print()">Imprimer</button>
+{% endblock %}
+
+{% block contenu %}
+
+    <section class="adm-carte adm-feuille">
+        <div class="adm-carte__corps">
+            <dl class="adm-feuille__entete">
+                <div><dt>Organisme</dt><dd>{{ APP_NOM_OF }}</dd></div>
+                <div><dt>Formation</dt><dd>{{ session.formation.nom }}</dd></div>
+                <div><dt>Session</dt><dd>{{ session.reference }} · {{ session.formule.libelle }} · {{ session.modalite.libelle }}</dd></div>
+                <div>
+                    <dt>Dates</dt>
+                    <dd>
+                        {% if session.dateDebut is null %}
+                            À planifier
+                        {% elseif session.dateDebut == session.dateFin %}
+                            {{ session.dateDebut|date('d/m/Y') }}
+                        {% else %}
+                            du {{ session.dateDebut|date('d/m/Y') }} au {{ session.dateFin|date('d/m/Y') }}
+                        {% endif %}
+                        · {{ session.heuresPlanifiees|number_format(session.heuresPlanifiees == session.heuresPlanifiees|round ? 0 : 1, ',', ' ') }} h
+                    </dd>
+                </div>
+                <div><dt>Lieu</dt><dd>{{ session.lieu ?: '—' }}</dd></div>
+                <div><dt>Client</dt><dd>{{ session.client ? session.client.nom : '—' }}</dd></div>
+            </dl>
+        </div>
+
+        {% if seances is empty or personnes is empty %}
+            <p class="adm-vide">Rien à émarger pour l'instant.</p>
+        {% else %}
+            <div class="adm-table-zone">
+                <table class="adm-table adm-emargement adm-emargement--feuille">
+                    <thead>
+                        <tr>
+                            <th scope="col">Nom</th>
+                            {% for ligne in seances %}
+                                <th scope="col">
+                                    {{ jours[ligne.seance.jour|date('w')] }} {{ ligne.seance.jour|date('d/m/Y') }}
+                                    <span>{{ ligne.seance.debut|date('H:i') }} – {{ ligne.seance.fin|date('H:i') }}</span>
+                                </th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for personne in personnes %}
+                            <tr>
+                                <th scope="row">
+                                    {{ personne.nom }}
+                                    <span>{{ personne.role }}</span>
+                                </th>
+                                {% for ligne in seances %}
+                                    {% set emargement = tableau[ligne.seance.id][personne.cle] ?? null %}
+                                    <td>
+                                        {% if emargement and emargement.estEnLigne %}
+                                            <img src="{{ emargement.signature }}" alt="Signature de {{ personne.nom }}"
+                                                 class="adm-emargement__signature">
+                                            <span class="adm-emargement__preuve">
+                                                Signé en ligne le {{ emargement.horodatage|date('d/m/Y à H:i', 'Europe/Paris') }}
+                                                {% if emargement.ip %}· {{ emargement.ip }}{% endif %}
+                                            </span>
+                                        {% elseif emargement %}
+                                            <strong>{{ emargement.etat.libelle }}</strong>
+                                            <span class="adm-emargement__preuve">
+                                                Saisi le {{ emargement.horodatage|date('d/m/Y à H:i', 'Europe/Paris') }}
+                                                {% if emargement.saisiPar %}par {{ emargement.saisiPar }}{% endif %}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="adm-feuille__note">
+                Signatures recueillies en ligne, depuis le lien personnel de chaque personne : la date, l'heure
+                et l'adresse de connexion sont conservées. « Saisi » : présence ou absence notée par l'organisme.
+                Feuille éditée le {{ 'now'|date('d/m/Y à H:i', 'Europe/Paris') }}.
+            </p>
+        {% endif %}
+    </section>
+
+{% endblock %}

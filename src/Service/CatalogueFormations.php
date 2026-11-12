@@ -2,99 +2,51 @@
 
 namespace App\Service;
 
-use DateTimeImmutable;
-use Psr\Cache\InvalidArgumentException;
-use Psr\Log\LoggerInterface;
+use App\Entity\Formation;
+use App\Repository\FormationRepository;
 use Symfony\Component\String\Slugger\SluggerInterface;
-use Symfony\Contracts\Cache\CacheInterface;
-use Symfony\Contracts\Cache\ItemInterface;
-use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
-use Throwable;
 
 /**
- * Catalogue public des formations, construit à partir des produits SmartOF.
+ * Catalogue public des formations, construit à partir des formations
+ * publiées dans l'admin (/admin/formations).
  *
- * SmartOF est la source unique : rien n'est saisi côté site. Ce service fait
- * la traduction entre le produit SmartOF (champs libres, textes à puces) et
- * ce que les gabarits attendent (listes, déroulé par journée).
+ * Ce service fait la traduction entre la fiche saisie (textes à puces,
+ * programme en lignes) et ce que les gabarits attendent (listes, déroulé
+ * par journée). Une formation en brouillon ou archivée n'apparaît nulle
+ * part sur le site, y compris par son adresse directe.
  */
 class CatalogueFormations
 {
-    /**
-     * Champs personnalisés SmartOF (Produit > Champs personnalisés).
-     * L'API ne renvoie pas leurs libellés, seulement custom_field_N :
-     * la correspondance est fixée ici.
-     */
-    private const string CHAMP_ACCROCHE = 'custom_field_2';
-    private const string CHAMP_DOMAINE = 'custom_field_4';
-    private const string CHAMP_SOUS_DOMAINE = 'custom_field_6';
-    private const string CHAMP_NB_FORMES = 'custom_field_3';
-    private const string CHAMP_NOTE = 'custom_field_5';
-    private const string CHAMP_CE_QUI_CHANGE = 'custom_field_7';
-
-    /** Note maximale saisie dans SmartOF (sur 5). */
-    private const int NOTE_MAX = 5;
-
-    /** Seuls les produits à ce statut sont publiés sur le site. */
-    private const string STATUT_PUBLIE = 'Actif';
-
     /** Durée d'une journée de formation, pour afficher les jours à côté des heures. */
     private const int HEURES_PAR_JOUR = 7;
 
-    /**
-     * Formules de session, reconnues dans l'intitulé du tarif SmartOF
-     * (SmartOF > Produit > Tarification).
-     */
+    /** Formules de session : le gabarit s'en sert pour libeller chaque tarif. */
     private const string FORMULE_INTER = 'inter';
     private const string FORMULE_INTRA = 'intra';
 
     /**
-     * Le catalogue est relu à cet intervalle : une modification dans SmartOF
-     * apparaît sur le site au plus tard après ce délai.
+     * Les formations publiées, lues une seule fois par requête : une page
+     * demande souvent la liste et les domaines.
+     *
+     * @var list<Formation>|null
      */
-    private const int DUREE_CACHE = 600;
-
-    /**
-     * Le suffixe change dès que la forme du résumé change : au déploiement,
-     * un cache écrit par la version précédente n'est pas servi aux gabarits
-     * de la nouvelle.
-     */
-    private const string CLE_CACHE_LISTE = 'catalogue_formations_liste_v4';
-
-    /**
-     * Dernière réponse SmartOF obtenue, conservée sans expiration : si
-     * SmartOF ne répond plus, le site continue d'afficher ce catalogue-là
-     * plutôt que rien.
-     */
-    private const string CLE_CACHE_SECOURS = 'catalogue_formations_secours_v4';
+    private ?array $publiees = null;
 
     public function __construct(
-        private readonly SmartOfApiService $smartOfApiService,
-        private readonly SluggerInterface  $slugger,
-        private readonly CacheInterface    $cache,
-        private readonly LoggerInterface   $logger,
+        private readonly FormationRepository $formations,
+        private readonly SluggerInterface    $slugger,
     )
     {
     }
 
     /**
-     * Les formations publiées, triées par nom.
+     * Les formations publiées, triées par adresse.
      *
      * @return array<int, array<string, mixed>>
-     *
-     * @throws InvalidArgumentException
      */
     public function lister(): array
     {
-        $formations = array_map($this->resume(...), $this->produitsPublies());
-
-        usort($formations, static fn(array $a, array $b) => strcmp($a['slug'], $b['slug']));
-
-        return $formations;
+        return array_map($this->resume(...), $this->publiees());
     }
 
     /**
@@ -103,16 +55,13 @@ class CatalogueFormations
      * elle s'adresse, ce qu'elle suppose déjà acquis.
      *
      * @return array<int, array<string, mixed>>
-     *
-     * @throws InvalidArgumentException
      */
     public function pourOrientation(): array
     {
         $catalogue = [];
 
-        foreach ($this->produitsPublies() as $produit) {
-            $description = $produit['description'] ?? [];
-            $resume = $this->resume($produit);
+        foreach ($this->publiees() as $formation) {
+            $resume = $this->resume($formation);
 
             $catalogue[] = [
                 'slug' => $resume['slug'],
@@ -121,10 +70,9 @@ class CatalogueFormations
                 'sousDomaine' => $resume['sousDomaine'],
                 'accroche' => $resume['accroche'],
                 'duree' => $resume['dureeJours'] ?: $resume['duree'],
-                'objectifs' => $this->puces($description['objectifsDeLaFormation'] ?? '')
-                    ?: $this->puces($description['objectifsPedagogiques'] ?? ''),
-                'publicVise' => $this->puces($description['publicVise'] ?? ''),
-                'preRequis' => $this->puces($description['preRequis'] ?? ''),
+                'objectifs' => $this->puces($formation->getObjectifs()),
+                'publicVise' => $this->puces($formation->getPublicVise()),
+                'preRequis' => $this->puces($formation->getPrerequis()),
             ];
         }
 
@@ -132,82 +80,11 @@ class CatalogueFormations
     }
 
     /**
-     * Les produits SmartOF publiables, bruts. C'est cette réponse qui est
-     * mise en cache : les différentes vues du catalogue en sont dérivées
-     * sans rappeler l'API.
-     *
-     * @return array<int, array<string, mixed>>
-     *
-     * @throws InvalidArgumentException
-     */
-    private function produitsPublies(): array
-    {
-        try {
-            return $this->cache->get(self::CLE_CACHE_LISTE, $this->chargerProduits(...));
-        } catch (Throwable $e) {
-            // SmartOF ne répond pas (réseau, jeton, 5xx) : on sert la
-            // dernière réponse connue, quel que soit son âge. Sans copie de
-            // secours, on laisse l'erreur remonter : la page l'affiche déjà
-            // proprement.
-            $secours = $this->cache->get(self::CLE_CACHE_SECOURS, static fn(): ?array => null);
-
-            if ($secours === null) {
-                throw $e;
-            }
-
-            $this->logger->error('Catalogue : SmartOF injoignable, copie de secours servie.', ['exception' => $e]);
-
-            return $secours;
-        }
-    }
-
-    /**
-     * Recharge le catalogue depuis SmartOF sans attendre l'expiration du
-     * cache. Appelée par `catalogue:rafraichir`, lancée par cron à un
-     * intervalle plus court que DUREE_CACHE : aucun visiteur ne paie alors
-     * l'appel SmartOF. Si SmartOF échoue, l'ancien cache reste en place.
-     *
-     * @return int Le nombre de formations publiées.
-     *
-     * @throws InvalidArgumentException
-     */
-    public function rafraichir(): int
-    {
-        return count($this->cache->get(self::CLE_CACHE_LISTE, $this->chargerProduits(...), INF));
-    }
-
-    /**
-     * L'appel SmartOF lui-même, avec la mise à jour de la copie de secours.
-     *
-     * @return array<int, array<string, mixed>>
-     *
-     * @throws InvalidArgumentException
-     */
-    private function chargerProduits(ItemInterface $item): array
-    {
-        $item->expiresAfter(self::DUREE_CACHE);
-
-        $response = $this->smartOfApiService->callSmartofApi('/api/produit/list');
-
-        $produits = array_values(array_filter(
-            $response['produits'] ?? [],
-            $this->estPubliable(...),
-        ));
-
-        $this->cache->delete(self::CLE_CACHE_SECOURS);
-        $this->cache->get(self::CLE_CACHE_SECOURS, static fn(): array => $produits);
-
-        return $produits;
-    }
-
-    /**
-     * Les domaines saisis dans SmartOF, dédoublonnés et triés par ordre
+     * Les domaines des formations publiées, dédoublonnés et triés par ordre
      * alphabétique. Le slug est ASCII et en minuscules : le tri ignore donc
      * les accents et la casse.
      *
      * @return array<string, array{slug: string, nom: string}>
-     *
-     * @throws InvalidArgumentException
      */
     public function domaines(): array
     {
@@ -225,152 +102,127 @@ class CatalogueFormations
     }
 
     /**
-     * La fiche complète d'une formation publiée, ou null si le slug ne
+     * La fiche complète d'une formation publiée, ou null si l'adresse ne
      * correspond à aucune.
      *
-     * @return array<string, mixed>|null
+     * Les modalités laissées vides dans l'admin donnent des listes vides :
+     * le gabarit affiche alors ses textes communs à toutes les formations.
      *
-     * @throws TransportExceptionInterface
-     * @throws InvalidArgumentException
-     * @throws ServerExceptionInterface
-     * @throws RedirectionExceptionInterface
-     * @throws DecodingExceptionInterface
-     * @throws ClientExceptionInterface
+     * @return array<string, mixed>|null
      */
     public function fiche(string $slug): ?array
     {
-        $resume = null;
-
-        foreach ($this->lister() as $formation) {
-            if ($formation['slug'] === $slug) {
-                $resume = $formation;
-                break;
+        foreach ($this->publiees() as $formation) {
+            if ($formation->getSlug() !== $slug) {
+                continue;
             }
+
+            return $this->resume($formation) + [
+                    'objectifs' => $this->puces($formation->getObjectifs()),
+                    'objectifsPedagogiques' => [],
+                    'ceQuiChange' => $this->ceQuiChange($formation->getCeQuiChange()),
+                    'deroule' => $this->deroule($formation->getProgramme()),
+                    'publicVise' => $this->puces($formation->getPublicVise()),
+                    'preRequis' => $this->puces($formation->getPrerequis()),
+                    'methodes' => $this->puces($formation->getMethodes()),
+                    'moyens' => $this->puces($formation->getMoyens()),
+                    'evaluation' => $this->puces($formation->getEvaluation()),
+                    'acces' => $this->puces($formation->getAcces()),
+                    'accessibilite' => $this->puces($formation->getAccessibilite()),
+                    'profilFormateurs' => $this->puces($formation->getProfilFormateurs()),
+                    'lieu' => $formation->getLieu(),
+                    // L'effectif des sessions est le même pour toutes les formations :
+                    // il est écrit dans le gabarit.
+                    'misAJourLe' => $formation->getModifieLe(),
+                ];
         }
 
-        if ($resume === null) {
-            return null;
-        }
-
-        $produit = $this->smartOfApiService->callSmartofApi('/api/produit/get', [
-            'produitFormationUid' => $resume['id'],
-        ]);
-
-        $description = $produit['description'] ?? [];
-
-        return $resume + [
-                'objectifs' => $this->puces($description['objectifsDeLaFormation'] ?? ''),
-                'objectifsPedagogiques' => $this->puces($description['objectifsPedagogiques'] ?? ''),
-                'ceQuiChange' => $this->ceQuiChange((string)($produit['custom_fields'][self::CHAMP_CE_QUI_CHANGE] ?? '')),
-                'deroule' => $this->deroule((string)($description['contenuDeLaFormation'] ?? '')),
-                'publicVise' => $this->puces($description['publicVise'] ?? ''),
-                'preRequis' => $this->puces($description['preRequis'] ?? ''),
-                'methodes' => $this->puces($description['modalitesPedagogiques'] ?? ''),
-                'moyens' => $this->puces($description['moyensEtSupportsPedagogiques'] ?? ''),
-                'evaluation' => $this->puces($description['modalitesDEvaluationEtDeSuivi'] ?? ''),
-                'acces' => $this->puces($description['modalitesDAccesALaFormation'] ?? ''),
-                'profilFormateurs' => $this->puces($description['profilDuOuDesFormateurs'] ?? ''),
-                'lieu' => trim((string)($description['lieuDeLaFormation'] ?? '')),
-                // L'effectif des sessions est le même pour toutes les formations :
-                // il est écrit dans le gabarit, pas repris de SmartOF.
-                'misAJourLe' => $this->date($produit['updatedAt'] ?? null),
-            ];
+        return null;
     }
 
     /**
-     * Un produit est publiable s'il n'est pas archivé et que son statut
-     * SmartOF vaut « Actif » : les programmes en cours de rédaction restent
-     * invisibles du site.
-     *
-     * @param array<string, mixed> $produit
+     * @return list<Formation>
      */
-    private function estPubliable(array $produit): bool
+    private function publiees(): array
     {
-        return ($produit['archived'] ?? false) !== true
-            && ($produit['meta']['status'] ?? '') === self::STATUT_PUBLIE;
+        if ($this->publiees === null) {
+            $this->publiees = $this->formations->publiees();
+
+            // Tri sur l'adresse, octet par octet : le même ordre partout,
+            // quelle que soit la collation de la base.
+            usort($this->publiees, static fn(Formation $a, Formation $b) => strcmp($a->getSlug(), $b->getSlug()));
+        }
+
+        return $this->publiees;
     }
 
     /**
      * Ce que la carte du catalogue affiche, et que la fiche complète reprend.
      *
-     * @param array<string, mixed> $produit
-     *
      * @return array<string, mixed>
      */
-    private function resume(array $produit): array
+    private function resume(Formation $formation): array
     {
-        $description = $produit['description'] ?? [];
-        $champs = $produit['custom_fields'] ?? [];
-
-        // L'intitulé de la fiche de formation n'est pas toujours saisi :
-        // le nom du produit sert alors de titre public.
-        $nom = trim((string)($description['intituleDeLaFormation'] ?? ''))
-            ?: trim((string)($produit['meta']['nom'] ?? ''));
-
-        $domaine = trim((string)($champs[self::CHAMP_DOMAINE] ?? ''));
-        $tarifs = $this->tarifs($produit);
+        $domaine = $formation->getDomaine();
+        $tarifs = $this->tarifs($formation);
 
         return [
-            'id' => $produit['produitFormationUid'],
-            'slug' => $this->slugger->slug($nom)->lower()->toString(),
-            'nom' => $nom,
+            'id' => $formation->getId(),
+            'slug' => $formation->getSlug(),
+            'nom' => $formation->getNom(),
             'domaine' => $domaine === '' ? null : [
                 'slug' => $this->slugger->slug($domaine)->lower()->toString(),
                 'nom' => $domaine,
             ],
-            'sousDomaine' => trim((string)($champs[self::CHAMP_SOUS_DOMAINE] ?? '')),
-            'accroche' => trim((string)($champs[self::CHAMP_ACCROCHE] ?? '')),
-            'duree' => $this->dureeAffichee($description),
-            'dureeJours' => $this->dureeEnJours($description),
+            // Les sous-domaines n'existent plus ; la clé reste pour les
+            // gabarits et l'orientation, qui la lisent encore.
+            'sousDomaine' => '',
+            'accroche' => $formation->getAccroche(),
+            'duree' => $this->dureeAffichee($formation->getDureeHeures()),
+            'dureeJours' => $this->dureeEnJours($formation->getDureeHeures()),
             // La modalité (présentiel / distanciel) est la même pour toutes
-            // nos formations : elle est écrite dans le gabarit, pas reprise de
-            // `modeDOrganisation`, dont la saisie SmartOF est hétérogène.
+            // nos formations : elle est écrite dans le gabarit.
             'tarifs' => $tarifs,
-            'tarifSessionHT' => $this->tarifSessionHT($tarifs),
-            'note' => $this->note($champs[self::CHAMP_NOTE] ?? ''),
-            'nbFormes' => $this->nbFormes($champs[self::CHAMP_NB_FORMES] ?? ''),
+            // Coût affiché sur la carte : la formule inter, sinon l'intra.
+            'tarifSessionHT' => $tarifs[0]['montantHT'] ?? null,
+            // 0 signifie « pas encore de note », pas une mauvaise note.
+            'note' => $formation->getNote() > 0 ? $formation->getNote() : null,
+            'nbFormes' => $formation->getNbFormes() > 0 ? $formation->getNbFormes() : null,
         ];
     }
 
     /**
-     * Note de satisfaction sur 5, saisie « 4.7 » ou « 4,7 ». Null quand elle
-     * n'est pas renseignée : 0 signifie « pas encore de note », pas une
-     * mauvaise note.
-     */
-    private function note(mixed $saisie): ?float
-    {
-        $note = (float)str_replace(',', '.', trim((string)$saisie));
-
-        return $note > 0 ? min($note, self::NOTE_MAX) : null;
-    }
-
-    /**
-     * Nombre de personnes formées. Null quand il n'est pas renseigné (0).
-     */
-    private function nbFormes(mixed $saisie): ?int
-    {
-        $nombre = (int)preg_replace('/\D/', '', (string)$saisie);
-
-        return $nombre > 0 ? $nombre : null;
-    }
-
-    /**
-     * Durée telle que saisie dans SmartOF, sinon calculée à partir des
-     * heures : « 21 heures, 3 jours ».
+     * Les tarifs de session, l'inter d'abord. Les montants sont en euros.
      *
-     * @param array<string, mixed> $description
+     * @return array<int, array{formule: string, intitule: string, montantHT: float}>
      */
-    private function dureeAffichee(array $description): string
+    private function tarifs(Formation $formation): array
     {
-        $affichee = trim((string)($description['dureeDeLaFormationAffichee'] ?? ''));
+        $tarifs = [];
 
-        if ($affichee !== '') {
-            return $affichee;
+        foreach ([
+                     self::FORMULE_INTER => $formation->getTarifInterHT(),
+                     self::FORMULE_INTRA => $formation->getTarifIntraHT(),
+                 ] as $formule => $centimes) {
+            if ($centimes > 0) {
+                $tarifs[] = [
+                    'formule' => $formule,
+                    'intitule' => mb_strtoupper($formule),
+                    'montantHT' => $centimes / 100,
+                ];
+            }
         }
 
-        $heures = (float)($description['dureeDeLaFormation'] ?? 0);
+        return $tarifs;
+    }
 
-        if ($heures <= 0) {
+    /**
+     * « 21 heures, 3 jours ». Les jours ne sont précisés que s'ils tombent
+     * juste.
+     */
+    private function dureeAffichee(?float $heures): string
+    {
+        if ($heures === null || $heures <= 0) {
             return '';
         }
 
@@ -391,32 +243,10 @@ class CatalogueFormations
      *
      * Null quand le nombre d'heures ne tombe pas sur une journée ou une
      * demi-journée entière : mieux vaut alors s'en tenir aux heures.
-     *
-     * @param array<string, mixed> $description
      */
-    private function dureeEnJours(array $description): ?string
+    private function dureeEnJours(?float $heures): ?string
     {
-        $jours = $this->jours($description);
-
-        if ($jours === null) {
-            return null;
-        }
-
-        return rtrim(rtrim(number_format($jours, 1, ',', ' '), '0'), ',')
-            . ' jour' . ($jours >= 2 ? 's' : '');
-    }
-
-    /**
-     * Nombre de journées de formation. Null quand le volume horaire ne tombe
-     * pas sur une journée ou une demi-journée entière.
-     *
-     * @param array<string, mixed> $description
-     */
-    private function jours(array $description): ?float
-    {
-        $heures = (float)($description['dureeDeLaFormation'] ?? 0);
-
-        if ($heures <= 0) {
+        if ($heures === null || $heures <= 0) {
             return null;
         }
 
@@ -426,90 +256,19 @@ class CatalogueFormations
             return null;
         }
 
-        return round($jours * 2) / 2;
+        $jours = round($jours * 2) / 2;
+
+        return rtrim(rtrim(number_format($jours, 1, ',', ' '), '0'), ',')
+            . ' jour' . ($jours >= 2 ? 's' : '');
     }
 
     /**
-     * Les tarifs du produit, dans l'ordre de SmartOF. `formule` vaut
-     * « inter » ou « intra » quand l'intitulé le précise, sinon null : le
-     * gabarit s'en sert pour libeller chaque formule.
-     *
-     * Les montants SmartOF sont des totaux de session (prix unitaire ×
-     * quantité), pas des prix à la journée.
-     *
-     * @param array<string, mixed> $produit
-     *
-     * @return array<int, array{formule: ?string, intitule: string, montantHT: float}>
-     */
-    private function tarifs(array $produit): array
-    {
-        $tarifs = [];
-
-        foreach ($produit['presetTarification']['tarifs'] ?? [] as $tarif) {
-            $montant = 0.0;
-
-            foreach ($tarif['budget'] ?? [] as $ligne) {
-                $montant += (float)($ligne['prixUnitaireHT'] ?? 0) * (float)($ligne['quantite'] ?? 1);
-            }
-
-            if ($montant <= 0) {
-                continue;
-            }
-
-            $intitule = trim((string)($tarif['intitule'] ?? ''));
-
-            $tarifs[] = [
-                'formule' => $this->formule($intitule),
-                'intitule' => $intitule,
-                'montantHT' => $montant,
-            ];
-        }
-
-        return $tarifs;
-    }
-
-    /**
-     * « INTER » / « INTRA » saisis dans l'intitulé du tarif SmartOF.
-     * Null quand le produit n'a qu'un tarif, sans formule précisée.
-     */
-    private function formule(string $intitule): ?string
-    {
-        $intitule = mb_strtolower($intitule);
-
-        foreach ([self::FORMULE_INTER, self::FORMULE_INTRA] as $formule) {
-            if (str_contains($intitule, $formule)) {
-                return $formule;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Coût HT de session affiché sur la carte du catalogue : la formule
-     * inter quand le produit distingue les deux, sinon le premier tarif.
-     * Null en l'absence de tarif.
-     *
-     * @param array<int, array{formule: ?string, montantHT: float}> $tarifs
-     */
-    private function tarifSessionHT(array $tarifs): ?float
-    {
-        foreach ($tarifs as $tarif) {
-            if ($tarif['formule'] === self::FORMULE_INTER) {
-                return $tarif['montantHT'];
-            }
-        }
-
-        return $tarifs[0]['montantHT'] ?? null;
-    }
-
-    /**
-     * Les champs longs de SmartOF sont des textes à puces saisis à la main.
+     * Les champs longs sont des textes à puces saisis à la main.
      * Chaque ligne devient un élément de liste, la puce en moins.
      *
      * @return array<int, string>
      */
-    private function puces(mixed $texte): array
+    public function puces(mixed $texte): array
     {
         $lignes = preg_split('/\R/', trim((string)$texte)) ?: [];
 
@@ -527,7 +286,7 @@ class CatalogueFormations
     }
 
     /**
-     * « Ce que ça change, concrètement », saisi dans SmartOF :
+     * « Ce que ça change, concrètement » :
      *
      *     ◦ Ajouter un formulaire                      ← situation de travail
      *     Aujourd'hui : Validation dispersée…          ← avant la formation
@@ -566,7 +325,7 @@ class CatalogueFormations
     }
 
     /**
-     * Déroulé pédagogique, tel qu'il est saisi dans SmartOF :
+     * Déroulé pédagogique, tel qu'il est saisi :
      *
      *     JOUR 1 – Découverte du framework   ← journée (facultatif)
      *     ◦ Introduction (1h30)              ← séquence
@@ -577,7 +336,7 @@ class CatalogueFormations
      *
      * @return array<int, array{titre: ?string, duree: ?string, sequences: array<int, array{titre: string, duree: ?string, points: array<int, string>}>}>
      */
-    private function deroule(string $contenu): array
+    public function deroule(string $contenu): array
     {
         $journees = [];
 
@@ -665,7 +424,7 @@ class CatalogueFormations
     }
 
     /**
-     * « 1h30 » saisi dans SmartOF s'affiche « 1 h 30 », « 2h » devient « 2 h ».
+     * « 1h30 » saisi dans l'admin s'affiche « 1 h 30 », « 2h » devient « 2 h ».
      */
     private function dureeLisible(string $duree): ?string
     {
@@ -700,7 +459,7 @@ class CatalogueFormations
     }
 
     /**
-     * Accepte les notations rencontrées dans SmartOF : « 1h30 », « 2 h »,
+     * Accepte les notations rencontrées dans les programmes : « 1h30 », « 2 h »,
      * « 45 min », « 1 h 30 ».
      */
     private function dureeEnMinutes(string $duree): ?int
@@ -714,18 +473,5 @@ class CatalogueFormations
         }
 
         return null;
-    }
-
-    private function date(mixed $valeur): ?DateTimeImmutable
-    {
-        if (!is_string($valeur) || $valeur === '') {
-            return null;
-        }
-
-        try {
-            return new DateTimeImmutable($valeur);
-        } catch (\Exception) {
-            return null;
-        }
     }
 }

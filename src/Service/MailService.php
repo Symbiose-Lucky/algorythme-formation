@@ -4,6 +4,8 @@ namespace App\Service;
 
 use AllowDynamicProperties;
 use App\Entity\Formation;
+use App\Entity\SessionFormation;
+use App\Enum\TypeEvaluation;
 use Brevo\Brevo;
 use Brevo\Exceptions\BrevoException;
 use Brevo\TransactionalEmails\Requests\SendTransacEmailRequest;
@@ -147,6 +149,128 @@ class MailService
         ]);
 
         $this->sendBrevoMail($sujet, $this->destinataireSite, $message);
+    }
+
+    /**
+     * Envoie à un participant ou à un formateur son lien personnel
+     * d'émargement pour une session.
+     *
+     * @throws BrevoException
+     * @throws LoaderError
+     * @throws RuntimeError
+     * @throws SyntaxError
+     */
+    public function sendLienEmargement(string $destinataire, SessionFormation $session, string $lien): void
+    {
+        $formation = htmlspecialchars($session->getFormation()->getNom());
+        $sujet = 'Votre feuille de présence - ' . $session->getFormation()->getNom();
+
+        $message = $this->twig->render('emails/simple_message.html.twig', [
+            'sujet' => $sujet,
+            'message' => "Bonjour,
+                    <p>Voici votre lien personnel pour signer votre présence à la formation
+                    <strong>" . $formation . "</strong> (session " . $session->getReference() . ").</p>
+                    <p>Ouvrez-le à chaque demi-journée, à partir de l'heure de début : vous signez
+                    directement sur l'écran, sans compte ni mot de passe. Ce lien vous est propre,
+                    ne le transmettez pas.</p>",
+            'boutonText' => 'Signer ma présence',
+            'boutonUrl' => $lien,
+        ]);
+
+        $this->sendBrevoMail($sujet, $destinataire, $message);
+    }
+
+    /**
+     * Envoie à un participant le lien d'un questionnaire (positionnement,
+     * satisfaction), ou à un formateur celui de l'évaluation des acquis.
+     *
+     * @throws BrevoException
+     * @throws LoaderError
+     * @throws RuntimeError
+     * @throws SyntaxError
+     */
+    public function sendLienQuestionnaire(string $destinataire, SessionFormation $session, TypeEvaluation $type, string $lien): void
+    {
+        $formation = htmlspecialchars($session->getFormation()->getNom());
+
+        [$sujet, $texte, $bouton] = match ($type) {
+            TypeEvaluation::Positionnement => [
+                'Avant votre formation - ' . $session->getFormation()->getNom(),
+                "<p>Vous allez suivre la formation <strong>" . $formation . "</strong>. Pour que le formateur
+                    l'adapte à votre niveau et à vos attentes, merci de répondre à ce court questionnaire
+                    avant le début de la formation. Cela prend deux minutes.</p>",
+                'Répondre au questionnaire',
+            ],
+            TypeEvaluation::Chaud => [
+                'Votre avis sur la formation - ' . $session->getFormation()->getNom(),
+                "<p>Vous venez de suivre la formation <strong>" . $formation . "</strong>. Votre avis nous
+                    aide à l'améliorer : merci de prendre deux minutes pour répondre à ce questionnaire.</p>",
+                'Donner mon avis',
+            ],
+            TypeEvaluation::Froid => [
+                'Quelques semaines après votre formation - ' . $session->getFormation()->getNom(),
+                "<p>Vous avez suivi la formation <strong>" . $formation . "</strong> il y a quelques semaines.
+                    Avez-vous pu mettre en pratique ce que vous avez appris ? Merci de prendre deux minutes
+                    pour nous le dire.</p>",
+                'Faire le bilan',
+            ],
+            TypeEvaluation::Client => [
+                'Votre avis sur la formation - ' . $session->getFormation()->getNom(),
+                "<p>Vos collaborateurs viennent de suivre la formation <strong>" . $formation . "</strong>
+                    (session " . $session->getReference() . "). Votre avis nous aide à améliorer nos formations :
+                    merci de prendre deux minutes pour répondre à ce questionnaire.</p>",
+                'Donner mon avis',
+            ],
+            TypeEvaluation::Formateur => [
+                'Votre bilan de la session - ' . $session->getFormation()->getNom(),
+                "<p>Vous venez d'animer la formation <strong>" . $formation . "</strong> (session "
+                    . $session->getReference() . "). Merci de nous dire en deux minutes comment elle s'est
+                    passée : préparation, conditions matérielles, groupe, programme.</p>",
+                'Faire le bilan',
+            ],
+            TypeEvaluation::Acquis => [
+                'Évaluation des acquis - ' . $session->getFormation()->getNom(),
+                "<p>La formation <strong>" . $formation . "</strong> (session " . $session->getReference() . ")
+                    se termine. Merci d'indiquer, pour chaque participant, les objectifs acquis : votre
+                    évaluation figure sur l'attestation de fin de formation.</p>",
+                'Évaluer les acquis',
+            ],
+        };
+
+        $message = $this->twig->render('emails/simple_message.html.twig', [
+            'sujet' => $sujet,
+            'message' => 'Bonjour,' . $texte . '<p>Ce lien vous est propre, ne le transmettez pas.</p>',
+            'boutonText' => $bouton,
+            'boutonUrl' => $lien,
+        ]);
+
+        $this->sendBrevoMail($sujet, $destinataire, $message);
+    }
+
+    /**
+     * Demande à une personne de signer un document, par son lien personnel.
+     *
+     * @throws BrevoException
+     * @throws LoaderError
+     * @throws RuntimeError
+     * @throws SyntaxError
+     */
+    public function sendDemandeSignatureDocument(string $destinataire, string $nomDocument, string $lien): void
+    {
+        $sujet = 'Document à signer - ' . $nomDocument;
+
+        $message = $this->twig->render('emails/simple_message.html.twig', [
+            'sujet' => $sujet,
+            'message' => "Bonjour,
+                    <p>Le document <strong>" . htmlspecialchars($nomDocument) . "</strong> attend votre signature.</p>
+                    <p>Le lien ci-dessous vous permet de le lire puis de le signer directement à l'écran,
+                    sans compte ni mot de passe. Il vous est propre : ne le transmettez pas.
+                    Vous y retrouverez ensuite le document signé.</p>",
+            'boutonText' => 'Lire et signer le document',
+            'boutonUrl' => $lien,
+        ]);
+
+        $this->sendBrevoMail($sujet, $destinataire, $message);
     }
 
     /*

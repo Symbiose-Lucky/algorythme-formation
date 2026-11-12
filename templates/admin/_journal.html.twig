@@ -1,0 +1,53 @@
+{# Journal des modifications d'un objet (session, formateur, client, participant).
+   Attend :
+   - `journal`  : les EntreeJournal, de la plus récente à la première ;
+   - `champs`   : libellé de chaque champ suivi ;
+   - `cree_le`  : date de création de l'objet ;
+   - `creation` : ce qu'affiche l'entrée de création (« Création de la session »). #}
+<section class="adm-carte" id="journal">
+    <header class="adm-carte__tete">
+        <h2>Journal</h2>
+        <p class="adm-carte__compte">Créé le {{ cree_le|date('d/m/Y', 'Europe/Paris') }}</p>
+    </header>
+    <div class="adm-table-zone">
+        <table class="adm-table">
+            <thead>
+                <tr>
+                    <th scope="col">Date</th>
+                    <th scope="col">Auteur</th>
+                    <th scope="col">Modifications</th>
+                    <th scope="col">Raison</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entree in journal %}
+                    <tr>
+                        <td class="adm-table__date">
+                            {{ entree.creeLe|date('d/m/Y', 'Europe/Paris') }}
+                            <span>{{ entree.creeLe|date('H:i', 'Europe/Paris') }}</span>
+                        </td>
+                        <td>{{ entree.auteurEmail ?: '—' }}</td>
+                        <td>
+                            {% if entree.estCreation %}
+                                <span class="adm-muet">{{ creation }}</span>
+                            {% else %}
+                                <dl class="adm-ecarts">
+                                    {% for champ, ecart in entree.changements %}
+                                        <div>
+                                            <dt>{{ champs[champ] ?? { documents: 'Documents', emargement: 'Émargement' }[champ] ?? champ }}</dt>
+                                            <dd>
+                                                <del>{{ ecart.avant is same as(null) or ecart.avant is same as('') ? 'vide' : ecart.avant }}</del>
+                                                <ins>{{ ecart.apres is same as(null) or ecart.apres is same as('') ? 'vide' : ecart.apres }}</ins>
+                                            </dd>
+                                        </div>
+                                    {% endfor %}
+                                </dl>
+                            {% endif %}
+                        </td>
+                        <td>{{ entree.motif ?: '—' }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>

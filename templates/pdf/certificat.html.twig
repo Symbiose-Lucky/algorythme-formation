@@ -1,0 +1,79 @@
+{% extends 'pdf/base.html.twig' %}
+
+{# Certificat de réalisation d'un participant, sur le modèle du ministère
+   du Travail. La durée attestée est celle des séances émargées « présent »
+   (DocumentsGeneres::heuresRealisees), pas la durée prévue. #}
+
+{% import 'pdf/_session.html.twig' as s %}
+
+{% block titre %}Certificat de réalisation - {{ participant.prenom }} {{ participant.nom }}{% endblock %}
+
+{% block styles %}
+    <style>
+        .certificat p { margin-bottom: 3mm; font-size: 10pt; line-height: 1.5; }
+        .nature td { padding: 0.4mm 0; font-size: 10pt; }
+        .signature { width: 85mm; margin-top: 3mm; margin-left: 85mm; }
+        .signature td { border: 0.5pt solid #CBD3D9; }
+        .signature td.qui { padding: 2mm 4mm; }
+        .signature td.cadre { height: 30mm; padding: 2mm 4mm; vertical-align: middle; text-align: center; }
+        .signature img { max-width: 70mm; max-height: 26mm; }
+    </style>
+{% endblock %}
+
+{% block contenu %}
+
+    <h1 class="centre" style="margin: 2mm 0 7mm;">Certificat de réalisation</h1>
+
+    <div class="certificat">
+        <p>
+            Je soussigné {{ organisme.representantNom }}, {{ organisme.representantQualite|lower }}, représentant légal
+            du dispensateur de l'action concourant au développement des compétences
+            <strong>{{ organisme.nom }}</strong>, atteste que :
+        </p>
+
+        <p>
+            <strong>{{ participant.prenom }} {{ participant.nom }}</strong>
+            {%- if client %}, salarié(e) de l'entreprise <strong>{{ client.nom }}</strong>{% endif %},
+            a suivi l'action <strong>« {{ fiche.nom }} »</strong>.
+        </p>
+
+        <p>Nature de l'action concourant au développement des compétences :</p>
+        <table class="nature">
+            <tr><td>☑ action de formation</td></tr>
+            <tr><td>☐ bilan de compétences</td></tr>
+            <tr><td>☐ action de validation des acquis de l'expérience</td></tr>
+            <tr><td>☐ action de formation par apprentissage</td></tr>
+        </table>
+
+        <p style="margin-top: 4mm;">
+            qui s'est déroulée
+            {% if premierJour == dernierJour %}
+                le {{ s.jour(premierJour) }}
+            {% else %}
+                du {{ s.jour(premierJour) }} au {{ s.jour(dernierJour) }}
+            {% endif %}
+            pour une durée de <strong>{{ s.heures(heures) }}</strong>.
+        </p>
+
+        <p>
+            Sans préjudice des délais imposés par les règles fiscales, comptables ou commerciales, je m'engage à
+            conserver l'ensemble des pièces justificatives qui ont permis d'établir le présent certificat pendant
+            une durée de 3 ans à compter de la fin de l'année du dernier paiement. En cas de cofinancement des
+            fonds européens, la durée de conservation est étendue conformément aux obligations conventionnelles
+            spécifiques.
+        </p>
+
+        <p>Fait{% if organisme.ville %} à {{ organisme.ville }}{% endif %}, le {{ s.jour(editeLe) }}.</p>
+    </div>
+
+    <table class="signature insecable">
+        <tr><td class="qui">Cachet et signature du responsable du dispensateur de formation</td></tr>
+        <tr><td class="cadre">{% if organisme.signature %}<img src="{{ organisme.signature }}" alt="Signature">{% endif %}</td></tr>
+        <tr><td class="qui">{{ organisme.representantNom }}, {{ organisme.representantQualite|lower }}</td></tr>
+    </table>
+
+    <p class="muet petit" style="margin-top: 3mm;">
+        Session {{ session.reference }} · durée établie d'après les émargements de la session.
+    </p>
+
+{% endblock %}

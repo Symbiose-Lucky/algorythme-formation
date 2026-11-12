@@ -1,0 +1,107 @@
+{% extends 'signature/base.html.twig' %}
+
+{% set fichier = path('app_signature_fichier', { jeton: signataire.jeton }) %}
+{% set pret = signataire.zones is not empty %}
+
+{% block title %}{{ document.nom }}{% endblock %}
+
+{% block classe_page %}adm-signer--large{% endblock %}
+
+{% block contenu %}
+
+    <section class="adm-carte">
+        <div class="adm-carte__corps">
+            <p class="adm-signer__sur-titre">Document à signer · {{ document.categorie.libelle }}</p>
+            <h1 class="adm-signer__titre">{{ document.nom }}</h1>
+            <p class="adm-signer__qui">{{ signataire.nom }}</p>
+        </div>
+    </section>
+
+    <div data-controller="document"
+         data-document-fichier-value="{{ fichier }}"
+         data-document-worker-value="{{ asset('vendor/pdfjs-dist/legacy/build/pdf.worker.mjs.js') }}"
+         data-document-donnees-value="{{ donnees|json_encode }}"
+         class="adm-signer__document">
+
+        {% if signataire.aSigne %}
+            <section class="adm-carte">
+                <div class="adm-carte__corps adm-form">
+                    <p>
+                        Vous avez signé ce document le
+                        <strong>{{ signataire.signeLe|date('d/m/Y à H:i', 'Europe/Paris') }}</strong>.
+                        Vous pouvez le retrouver ici à tout moment.
+                    </p>
+                    <div class="adm-signer__actions">
+                        <a href="{{ fichier }}" class="adm-bouton adm-bouton--discret" target="_blank" rel="noopener">
+                            Ouvrir le document d'origine
+                        </a>
+                        <button type="button" class="adm-bouton adm-bouton--principal" data-action="document#telecharger">
+                            Télécharger le PDF signé
+                        </button>
+                    </div>
+                </div>
+            </section>
+        {% endif %}
+
+        <section class="adm-carte">
+            <header class="adm-carte__tete">
+                <h2>Le document</h2>
+                {% if not signataire.aSigne and pret %}
+                    <p class="adm-carte__compte">Votre signature apparaîtra dans les cadres « Votre signature ».</p>
+                {% endif %}
+            </header>
+            <p class="adm-vide" data-document-target="etat">Chargement du document…</p>
+            <div class="adm-pages" data-document-target="pages"></div>
+            <p class="adm-feuille__note">
+                <a href="{{ fichier }}" target="_blank" rel="noopener">Ouvrir le document dans un nouvel onglet</a>
+            </p>
+        </section>
+
+    </div>
+
+    {% if not signataire.aSigne %}
+        <section class="adm-carte" id="signer">
+            <header class="adm-carte__tete"><h2>Signer</h2></header>
+
+            {% if not pret %}
+                <p class="adm-vide">Ce document n'est pas encore prêt à être signé.</p>
+            {% else %}
+                <form method="post" class="adm-carte__corps adm-form" data-turbo="false"
+                      data-controller="signature" data-action="submit->signature#envoyer">
+
+                    {% if erreur %}
+                        <p class="adm-alerte" role="alert">{{ erreur }}</p>
+                    {% endif %}
+
+                    <div>
+                        <canvas class="adm-signature" data-signature-target="cadre"
+                                aria-label="Cadre de signature : signez au doigt ou à la souris"></canvas>
+                        <p class="adm-champ__aide">Signez dans le cadre, au doigt ou à la souris.</p>
+                        <p class="adm-champ__erreur" role="alert" data-signature-target="erreur" hidden>
+                            Signez dans le cadre avant de valider.
+                        </p>
+                    </div>
+                    <input type="hidden" name="signature" data-signature-target="champ">
+
+                    <label class="adm-case">
+                        <input type="checkbox" name="approuve" value="1" required>
+                        J'ai lu ce document et je l'approuve. Ma signature m'engage comme une signature manuscrite.
+                    </label>
+
+                    <div class="adm-signer__actions">
+                        <button type="button" class="adm-bouton adm-bouton--discret" data-action="signature#effacer">
+                            Effacer
+                        </button>
+                        <button type="submit" class="adm-bouton adm-bouton--principal">Signer le document</button>
+                    </div>
+
+                    <p class="adm-champ__aide">
+                        Votre signature, la date, l'heure et l'adresse de votre connexion sont conservées
+                        avec l'empreinte du document, comme preuve de votre accord.
+                    </p>
+                </form>
+            {% endif %}
+        </section>
+    {% endif %}
+
+{% endblock %}

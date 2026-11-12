@@ -1,0 +1,94 @@
+{% extends 'admin/base.html.twig' %}
+
+{% import 'admin/session/_formats.html.twig' as formats %}
+
+{% block title %}Sessions{% endblock %}
+
+{% block titre_page %}Sessions{% endblock %}
+
+{% block sous_titre %}
+    <p class="adm-entete__sous-titre">Formations planifiées, avec leurs séances et le journal de leurs modifications.</p>
+{% endblock %}
+
+{% block actions %}
+    <a href="{{ path('app_admin_session_nouvelle', formation ? { formation: formation.id } : {}) }}"
+       class="adm-bouton adm-bouton--principal">Nouvelle session</a>
+{% endblock %}
+
+{% block contenu %}
+
+    {% set filtre = formation ? { formation: formation.id } : {} %}
+
+    <section class="adm-carte">
+
+        <header class="adm-carte__tete">
+            <nav class="adm-onglets" aria-label="Filtrer par période">
+                {% for cle, libelle in { 'a-venir': 'À venir', 'passees': 'Passées', 'annulees': 'Annulées' } %}
+                    <a href="{{ path('app_admin_session', filtre|merge({ periode: cle })) }}"
+                       {{ periode == cle ? 'aria-current="true"' }}>
+                        {{ libelle }} <span>{{ nombres[cle] }}</span>
+                    </a>
+                {% endfor %}
+            </nav>
+
+            <form method="get" action="{{ path('app_admin_session') }}" class="adm-recherche">
+                <input type="hidden" name="periode" value="{{ periode }}">
+                <label for="formation" class="adm-sr">Filtrer par formation</label>
+                <select id="formation" name="formation">
+                    <option value="">Toutes les formations</option>
+                    {% for choix in formations %}
+                        <option value="{{ choix.id }}" {{ formation and formation.id == choix.id ? 'selected' }}>
+                            {{ choix.nom }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="adm-bouton adm-bouton--discret">Filtrer</button>
+            </form>
+        </header>
+
+        {% if sessions is empty %}
+            <p class="adm-vide">Aucune session ici pour l'instant.</p>
+        {% else %}
+            <div class="adm-table-zone">
+                <table class="adm-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Session</th>
+                            <th scope="col">Formation</th>
+                            <th scope="col">Dates</th>
+                            <th scope="col">Formule</th>
+                            <th scope="col">Modalité</th>
+                            <th scope="col">Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for session in sessions %}
+                            <tr>
+                                <td class="adm-table__court">
+                                    <a href="{{ path('app_admin_session_voir', { id: session.id }) }}"
+                                       class="adm-table__titre">{{ session.reference }}</a>
+                                </td>
+                                <td>
+                                    {{ session.formation.nom }}
+                                    <span class="adm-table__code">{{ session.formation.code }}</span>
+                                </td>
+                                <td class="adm-table__court">
+                                    {{ formats.dates(session) }}
+                                    {% if session.dureeIncoherente %}
+                                        <span class="adm-etiquette adm-etiquette--brouillon"
+                                              title="Les séances ne couvrent pas la durée du programme">Durée à revoir</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ session.formule.libelle }}</td>
+                                <td>{{ session.modalite.libelle }}</td>
+                                <td>{{ formats.statut(session.statut) }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+
+    </section>
+
+{% endblock %}

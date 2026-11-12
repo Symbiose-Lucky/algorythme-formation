@@ -1,0 +1,103 @@
+{% extends 'admin/base.html.twig' %}
+
+{% import 'admin/formation/_formats.html.twig' as formats %}
+
+{% block title %}Formations{% endblock %}
+
+{% block titre_page %}Formations{% endblock %}
+
+{% block sous_titre %}
+    <p class="adm-entete__sous-titre">Programmes du catalogue, avec l'historique de leurs modifications.</p>
+{% endblock %}
+
+{% block actions %}
+    <a href="{{ path('app_admin_formation_nouvelle') }}" class="adm-bouton adm-bouton--principal">
+        Nouvelle formation
+    </a>
+{% endblock %}
+
+{% block contenu %}
+
+    <section class="adm-carte">
+
+        <header class="adm-carte__tete">
+            {# Filtre par statut : « En cours » réunit brouillons et publiées. #}
+            <nav class="adm-onglets" aria-label="Filtrer par statut">
+                <a href="{{ path('app_admin_formation', recherche ? { q: recherche } : {}) }}"
+                   {{ statut is null ? 'aria-current="true"' }}>
+                    En cours <span>{{ nombres.brouillon + nombres.publiee }}</span>
+                </a>
+                {% for cas in ['publiee', 'brouillon', 'archivee'] %}
+                    <a href="{{ path('app_admin_formation', { statut: cas }|merge(recherche ? { q: recherche } : {})) }}"
+                       {{ statut and statut.value == cas ? 'aria-current="true"' }}>
+                        {{ { publiee: 'Publiées', brouillon: 'Brouillons', archivee: 'Archivées' }[cas] }}
+                        <span>{{ nombres[cas] }}</span>
+                    </a>
+                {% endfor %}
+            </nav>
+
+            <form method="get" action="{{ path('app_admin_formation') }}" class="adm-recherche" role="search">
+                {% if statut %}
+                    <input type="hidden" name="statut" value="{{ statut.value }}">
+                {% endif %}
+                <label for="q" class="adm-sr">Rechercher une formation</label>
+                <input type="search" id="q" name="q" value="{{ recherche }}" placeholder="Nom, code ou domaine">
+                <button type="submit" class="adm-bouton adm-bouton--discret">Rechercher</button>
+            </form>
+        </header>
+
+        {% if formations is empty %}
+            <p class="adm-vide">
+                {% if recherche %}
+                    Aucune formation ne correspond à « {{ recherche }} ».
+                {% else %}
+                    Aucune formation ici pour l'instant.
+                {% endif %}
+            </p>
+        {% else %}
+            <div class="adm-table-zone">
+                <table class="adm-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Formation</th>
+                            <th scope="col">Domaine</th>
+                            <th scope="col">Durée</th>
+                            <th scope="col" class="adm-table__nombre">Inter HT</th>
+                            <th scope="col" class="adm-table__nombre">Intra HT</th>
+                            <th scope="col">Statut</th>
+                            <th scope="col">Modifiée le</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for formation in formations %}
+                            <tr>
+                                <td>
+                                    <a href="{{ path('app_admin_formation_voir', { id: formation.id }) }}"
+                                       class="adm-table__titre">{{ formation.nom }}</a>
+                                    <span class="adm-table__code">{{ formation.code }}</span>
+                                </td>
+                                <td>{{ formation.domaine ?: '—' }}</td>
+                                <td class="adm-table__court">
+                                    {{ formats.heures(formation.dureeHeures) }}
+                                </td>
+                                <td class="adm-table__nombre">
+                                    {{ formats.prix(formation.tarifInterHT) }}
+                                </td>
+                                <td class="adm-table__nombre">
+                                    {{ formats.prix(formation.tarifIntraHT) }}
+                                </td>
+                                <td>{{ include('admin/formation/_statut.html.twig', { statut: formation.statut }) }}</td>
+                                <td class="adm-table__date">
+                                    {{ formation.modifieLe|date('d/m/Y', 'Europe/Paris') }}
+                                    <span>version {{ formation.version }}</span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+
+    </section>
+
+{% endblock %}

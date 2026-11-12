@@ -1,0 +1,77 @@
+{% extends 'admin/base.html.twig' %}
+
+{# Liste d'une fiche de gestion (formateurs, clients, participants) :
+   voir AbstractFicheController. #}
+
+{% block title %}{{ libelles.pluriel }}{% endblock %}
+
+{% block titre_page %}{{ libelles.pluriel }}{% endblock %}
+
+{% block sous_titre %}
+    <p class="adm-entete__sous-titre">{{ libelles.sousTitre }}</p>
+{% endblock %}
+
+{% block actions %}
+    <a href="{{ path(route ~ '_nouveau') }}" class="adm-bouton adm-bouton--principal">{{ libelles.nouveau }}</a>
+{% endblock %}
+
+{% block contenu %}
+
+    <section class="adm-carte">
+
+        <header class="adm-carte__tete">
+            <nav class="adm-onglets" aria-label="Filtrer">
+                <a href="{{ path(route, recherche ? { q: recherche } : {}) }}" {{ not archives ? 'aria-current="true"' }}>
+                    Actifs <span>{{ nombres.actifs }}</span>
+                </a>
+                <a href="{{ path(route, { archives: 1 }|merge(recherche ? { q: recherche } : {})) }}"
+                   {{ archives ? 'aria-current="true"' }}>
+                    Archivés <span>{{ nombres.archives }}</span>
+                </a>
+            </nav>
+
+            <form method="get" action="{{ path(route) }}" class="adm-recherche" role="search">
+                {% if archives %}
+                    <input type="hidden" name="archives" value="1">
+                {% endif %}
+                <label for="q" class="adm-sr">Rechercher</label>
+                <input type="search" id="q" name="q" value="{{ recherche }}" placeholder="{{ libelles.recherche }}">
+                <button type="submit" class="adm-bouton adm-bouton--discret">Rechercher</button>
+            </form>
+        </header>
+
+        {% if lignes is empty %}
+            <p class="adm-vide">
+                {{ recherche ? 'Aucun résultat pour « ' ~ recherche ~ ' ».' : libelles.vide }}
+            </p>
+        {% else %}
+            <div class="adm-table-zone">
+                <table class="adm-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Nom</th>
+                            {% for colonne in colonnes %}
+                                <th scope="col">{{ colonne }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ligne in lignes %}
+                            <tr>
+                                <td>
+                                    <a href="{{ path(route ~ '_voir', { id: ligne.id }) }}"
+                                       class="adm-table__titre">{{ ligne.nom }}</a>
+                                </td>
+                                {% for cellule in ligne.cellules %}
+                                    <td>{{ cellule is same as('') ? '—' : cellule }}</td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+
+    </section>
+
+{% endblock %}
