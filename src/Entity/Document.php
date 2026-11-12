@@ -78,6 +78,13 @@ class Document
     #[ORM\Column(length: 120, nullable: true)]
     private ?string $origine = null;
 
+    /** Dernier envoi du document par email à son destinataire (convocation, certificat, attestation). */
+    #[ORM\Column(nullable: true)]
+    private ?DateTimeImmutable $envoyeLe = null;
+
+    #[ORM\Column(length: 180, nullable: true)]
+    private ?string $envoyeA = null;
+
     /**
      * @var Collection<int, Signataire>
      */
@@ -219,6 +226,22 @@ class Document
     public function getOrigine(): ?string
     {
         return $this->origine;
+    }
+
+    public function getEnvoyeLe(): ?DateTimeImmutable
+    {
+        return $this->envoyeLe;
+    }
+
+    public function getEnvoyeA(): ?string
+    {
+        return $this->envoyeA;
+    }
+
+    public function marquerEnvoye(string $email): void
+    {
+        $this->envoyeLe = new DateTimeImmutable();
+        $this->envoyeA = mb_substr($email, 0, 180);
     }
 
     public function isArchive(): bool

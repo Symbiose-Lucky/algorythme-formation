@@ -59,6 +59,8 @@ gestion interne (formations, sessions) ; la compléter à chaque nouveau module.
    bilan du formateur (écran « Évaluations » de la session, tableau « Clients et formateurs »). Les questionnaires s'ouvrent seuls selon les dates
    des séances ; il n'y a pas de cron : les relances par email partent du bouton de l'écran
    « Évaluations » de la session (le questionnaire à froid s'ouvre 60 jours après la dernière séance).
+8 quater. **Envoi des documents** : sur la session de test, générer une convocation pour un participant
+   dont l'adresse email est la vôtre, cliquer sur « Envoyer par email » et vérifier la pièce jointe reçue.
 9. Dans l'admin, relire les fiches importées et compléter ce que SmartOF ne portait pas
    (accessibilité, modalités propres à une formation).
 

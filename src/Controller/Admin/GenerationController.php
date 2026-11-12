@@ -10,22 +10,33 @@ use App\Enum\FormuleSession;
 use App\Repository\DocumentRepository;
 use App\Repository\EvaluationRepository;
 use App\Repository\OrganismeRepository;
+use App\Service\Documents;
 use App\Service\DocumentsGeneres;
+use App\Service\MailService;
 use DomainException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Throwable;
 
 /**
  * Génération des documents d'une session : programme, convention par
- * client, convocations, certificats de réalisation.
+ * client, convocations, certificats de réalisation, attestations ; et
+ * envoi par email, à chaque participant, de ceux qui lui reviennent.
  */
 #[IsGranted('ROLE_ADMIN')]
 #[Route('/admin/sessions/{id}/documents', name: 'app_admin_generation', requirements: ['id' => '\d+'])]
 class GenerationController extends AbstractController
 {
+    /** Les documents remis à chaque participant : modèle => préfixe de l'origine du document. */
+    private const array NOMINATIFS = [
+        'convocations' => 'convocation:inscription:',
+        'certificats' => 'certificat:inscription:',
+        'attestations' => 'attestation:inscription:',
+    ];
+
     public function __construct(
         private readonly DocumentsGeneres $generes,
     )
@@ -134,6 +145,92 @@ class GenerationController extends AbstractController
             }
         } catch (DomainException $e) {
             $this->addFlash('erreur', $e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_generation', ['id' => $session->getId()]);
+    }
+
+    /**
+     * Envoie à chaque participant, en pièce jointe, son document en vigueur
+     * d'un modèle donné. Un document déjà envoyé ne repart pas : pour le
+     * renvoyer, le générer à nouveau.
+     */
+    #[Route('/envoyer', name: '_envoyer', methods: ['POST'])]
+    public function envoyer(
+        SessionFormation   $session,
+        Request            $request,
+        DocumentRepository $depot,
+        Documents          $documents,
+        MailService        $mails,
+    ): Response
+    {
+        if (!$this->isCsrfTokenValid('submit', $request->request->getString('_csrf_token'))) {
+            throw $this->createAccessDeniedException('Jeton CSRF invalide.');
+        }
+
+        $modele = $request->request->getString('modele');
+        $prefixe = self::NOMINATIFS[$modele] ?? null;
+
+        if ($prefixe === null) {
+            throw $this->createNotFoundException('Modèle inconnu.');
+        }
+
+        $user = $this->getUser();
+        $auteur = $user instanceof User ? $user : null;
+
+        $existants = [];
+
+        foreach ($depot->de(SessionFormation::TYPE_JOURNAL, $session->getId()) as $document) {
+            if ($document->getOrigine() !== null && !$document->isArchive()) {
+                $existants[$document->getOrigine()] ??= $document;
+            }
+        }
+
+        $envoyes = 0;
+        $sansEmail = [];
+        $echecs = [];
+
+        foreach ($session->inscrits() as $inscription) {
+            $document = $existants[$prefixe . $inscription->getId()] ?? null;
+
+            if ($document === null || $document->getEnvoyeLe() !== null) {
+                continue;
+            }
+
+            $participant = $inscription->getParticipant();
+
+            if ((string)$participant->getEmail() === '') {
+                $sansEmail[] = $participant->libelle();
+                continue;
+            }
+
+            try {
+                $mails->sendDocumentSession(
+                    $participant->getEmail(),
+                    $session,
+                    $modele,
+                    $document->getNom() . '.pdf',
+                    (string)file_get_contents($documents->chemin($document)),
+                );
+                $documents->noterEnvoi($document, $participant->getEmail(), $auteur);
+                $envoyes++;
+            } catch (Throwable) {
+                $echecs[] = $participant->libelle();
+            }
+        }
+
+        if ($envoyes > 0) {
+            $this->addFlash('succes', sprintf('%d document(s) envoyé(s) par email.', $envoyes));
+        } elseif ($sansEmail === [] && $echecs === []) {
+            $this->addFlash('succes', 'Rien à envoyer : tout est déjà parti, ou rien n\'est encore généré.');
+        }
+
+        if ($sansEmail !== []) {
+            $this->addFlash('erreur', 'Sans adresse email, à remettre autrement : ' . implode(', ', $sansEmail) . '.');
+        }
+
+        if ($echecs !== []) {
+            $this->addFlash('erreur', "L'envoi a échoué pour : " . implode(', ', $echecs) . '.');
         }
 
         return $this->redirectToRoute('app_admin_generation', ['id' => $session->getId()]);

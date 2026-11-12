@@ -21,6 +21,10 @@
         <a href="{{ path('app_admin_document_voir', { id: document.id }) }}">{{ document.nom }}</a>
         <span class="adm-muet">généré le {{ document.deposeLe|date('d/m/Y à H:i', 'Europe/Paris') }}</span>
         {% if document.etatSignature %}{{ include('admin/document/_etat.html.twig', { etat: document.etatSignature }) }}{% endif %}
+        {% if document.envoyeLe %}
+            <span class="adm-etiquette adm-etiquette--terminee"
+                  title="Envoyé à {{ document.envoyeA }}">Envoyé le {{ document.envoyeLe|date('d/m/Y', 'Europe/Paris') }}</span>
+        {% endif %}
     {% else %}
         <span class="adm-muet">Pas encore généré</span>
     {% endif %}
@@ -33,6 +37,20 @@
         <input type="hidden" name="modele" value="{{ modele }}">
         <button type="submit" class="adm-bouton adm-bouton--principal">{{ libelle }}</button>
     </form>
+{% endmacro %}
+
+{# Le bouton qui envoie à chaque participant son document, s'il en reste à envoyer. #}
+{% macro envoi(session, modele, prefixe, inscrits, existants) %}
+    {% set attente = inscrits|filter(i => existants[prefixe ~ i.id] is defined and existants[prefixe ~ i.id].envoyeLe is null)|length %}
+    {% if attente %}
+        <form method="post" action="{{ path('app_admin_generation_envoyer', { id: session.id }) }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('submit') }}" data-controller="csrf-protection">
+            <input type="hidden" name="modele" value="{{ modele }}">
+            <button type="submit" class="adm-bouton adm-bouton--discret">
+                Envoyer par email ({{ attente }})
+            </button>
+        </form>
+    {% endif %}
 {% endmacro %}
 
 {% block contenu %}
@@ -56,7 +74,8 @@
 
     <p class="adm-entete__sous-titre adm-generation__note">
         Générer à nouveau un document archive sa version précédente, sauf si elle est déjà signée.
-        Chaque document généré se retrouve dans les documents de la session.
+        Chaque document généré se retrouve dans les documents de la session. Convocations, certificats et
+        attestations s'envoient par email à chaque participant ; un document déjà envoyé ne repart pas.
     </p>
 
     <section class="adm-carte">
@@ -132,6 +151,7 @@
             <h2>Convocations</h2>
             <p class="adm-carte__compte">Une par participant, avec son lien personnel d'émargement.</p>
             {% if inscrits %}
+                {{ _self.envoi(session, 'convocations', 'convocation:inscription:', inscrits, existants) }}
                 {{ _self.bouton(session, 'convocations', 'Générer les ' ~ inscrits|length ~ ' convocation' ~ (inscrits|length > 1 ? 's')) }}
             {% endif %}
         </header>
@@ -154,6 +174,7 @@
             <h2>Certificats de réalisation</h2>
             <p class="adm-carte__compte">Un par participant présent. La durée attestée est celle des séances émargées.</p>
             {% if heures|filter(l => l.heures > 0) %}
+                {{ _self.envoi(session, 'certificats', 'certificat:inscription:', inscrits, existants) }}
                 {{ _self.bouton(session, 'certificats', 'Générer les certificats') }}
             {% endif %}
         </header>
@@ -188,6 +209,7 @@
                 Une par participant présent dont les acquis ont été évalués : elle en reprend le résultat.
             </p>
             {% if evalues %}
+                {{ _self.envoi(session, 'attestations', 'attestation:inscription:', inscrits, existants) }}
                 {{ _self.bouton(session, 'attestations', 'Générer les attestations') }}
             {% endif %}
         </header>

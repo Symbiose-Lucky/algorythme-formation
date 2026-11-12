@@ -48,7 +48,8 @@ class MailService
      * + Brevo\Client\Model\SendSmtpEmail + Configuration) a disparu en v5, remplacée par
      * le client généré Brevo\Brevo et ses objets de requête typés.
      *
-     * @param UploadedFile[] $attachments
+     * @param array<UploadedFile|array{name: string, content: string}> $attachments Fichiers reçus d'un formulaire,
+     *                                                                         ou pièces déjà en mémoire (nom, contenu binaire)
      *
      * @throws BrevoException si Brevo refuse ou n'accepte pas l'envoi
      */
@@ -64,17 +65,7 @@ class MailService
             $destinataire = $_ENV['APP_DESTINATAIRE_DEV'];
         }
 
-        // Gestion des fichiers
-        $formattedAttachments = [];
-
-        foreach ($attachments as $file) {
-            if ($file instanceof UploadedFile && $file->isValid()) {
-                $formattedAttachments[] = new SendTransacEmailRequestAttachmentItem([
-                    'name' => $file->getClientOriginalName(),
-                    'content' => base64_encode(file_get_contents($file->getPathname())),
-                ]);
-            }
-        }
+        $formattedAttachments = $this->piecesJointes($attachments);
 
         $params = [
             'subject' => $sujet,
@@ -103,6 +94,79 @@ class MailService
 
             throw $e;
         }
+    }
+
+    /**
+     * Met les pièces jointes au format attendu par Brevo (contenu en base64).
+     *
+     * @param array<UploadedFile|array{name: string, content: string}> $attachments
+     *
+     * @return list<SendTransacEmailRequestAttachmentItem>
+     */
+    private function piecesJointes(array $attachments): array
+    {
+        $pieces = [];
+
+        foreach ($attachments as $file) {
+            if ($file instanceof UploadedFile && $file->isValid()) {
+                $pieces[] = new SendTransacEmailRequestAttachmentItem([
+                    'name' => $file->getClientOriginalName(),
+                    'content' => base64_encode(file_get_contents($file->getPathname())),
+                ]);
+            } elseif (is_array($file) && isset($file['name'], $file['content'])) {
+                $pieces[] = new SendTransacEmailRequestAttachmentItem([
+                    'name' => $file['name'],
+                    'content' => base64_encode($file['content']),
+                ]);
+            }
+        }
+
+        return $pieces;
+    }
+
+    /**
+     * Envoie à un participant un document de sa session, en pièce jointe :
+     * convocation, certificat de réalisation, attestation de fin de formation.
+     *
+     * @param string $modele  « convocations », « certificats » ou « attestations »
+     * @param string $contenu Le fichier PDF
+     *
+     * @throws BrevoException
+     * @throws LoaderError
+     * @throws RuntimeError
+     * @throws SyntaxError
+     */
+    public function sendDocumentSession(string $destinataire, SessionFormation $session, string $modele, string $nomFichier, string $contenu): void
+    {
+        $nom = $session->getFormation()->getNom();
+        $formation = htmlspecialchars($nom);
+
+        [$sujet, $texte] = match ($modele) {
+            'convocations' => [
+                'Votre convocation - ' . $nom,
+                "<p>Vous êtes inscrit(e) à la formation <strong>" . $formation . "</strong>. Vous trouverez
+                    votre convocation en pièce jointe : elle précise les dates, les horaires et le lieu, ainsi
+                    que votre lien personnel pour signer votre présence à chaque demi-journée.</p>",
+            ],
+            'certificats' => [
+                'Votre certificat de réalisation - ' . $nom,
+                "<p>Vous avez suivi la formation <strong>" . $formation . "</strong>. Vous trouverez en pièce
+                    jointe votre certificat de réalisation. Conservez-le : il atteste de votre participation.</p>",
+            ],
+            'attestations' => [
+                'Votre attestation de fin de formation - ' . $nom,
+                "<p>Vous avez suivi la formation <strong>" . $formation . "</strong>. Vous trouverez en pièce
+                    jointe votre attestation de fin de formation, avec le résultat de l'évaluation de vos
+                    acquis. Conservez-la.</p>",
+            ],
+        };
+
+        $message = $this->twig->render('emails/simple_message.html.twig', [
+            'sujet' => $sujet,
+            'message' => 'Bonjour,' . $texte . '<p>Pour toute question, répondez simplement à cet email.</p>',
+        ]);
+
+        $this->sendBrevoMail($sujet, $destinataire, $message, [['name' => $nomFichier, 'content' => $contenu]]);
     }
 
     /**

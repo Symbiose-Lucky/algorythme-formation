@@ -179,6 +179,28 @@ class Documents
         return $this->dossier . '/' . $document->getFichier();
     }
 
+    /**
+     * Note qu'un document a été envoyé par email à son destinataire, et le
+     * consigne au journal de l'objet auquel il est rattaché.
+     */
+    public function noterEnvoi(Document $document, string $email, ?User $auteur): void
+    {
+        $avant = $document->getEnvoyeA() === null
+            ? $document->getNom() . ' : pas encore envoyé'
+            : $document->getNom() . ' : envoyé à ' . $document->getEnvoyeA();
+
+        $document->marquerEnvoye($email);
+        $this->em->flush();
+
+        $this->consigner(
+            $document,
+            $avant,
+            $document->getNom() . ' : envoyé par email à ' . $email . ' le '
+                . $document->getEnvoyeLe()->setTimezone(new \DateTimeZone('Europe/Paris'))->format('d/m/Y à H:i'),
+            $auteur,
+        );
+    }
+
     public function archiver(Document $document, bool $archive, ?User $auteur): void
     {
         if ($document->isArchive() === $archive) {
